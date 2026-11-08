@@ -1,0 +1,38 @@
+version: 2
+
+# Titles follow Conventional Commits (build(deps): ..., ci(deps): ...) because
+# squash merging makes the PR title the commit message on main.
+updates:
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
+      day: monday
+    cooldown:
+      default-days: 7
+    commit-message:
+      prefix: ci
+      include: scope
+    groups:
+      actions:
+        patterns: ["*"]
+
+  # Known to fail ("tool_version_not_supported") while requires-python is
+  # >=3.15: Dependabot's updater supports Python 3.10 to 3.14 only. It should
+  # start working by itself once dependabot-core supports 3.15
+  # (https://github.com/dependabot/dependabot-core/pull/16525). Failed runs
+  # show under Actions > "Dependabot Updates" and Insights > Dependency graph >
+  # Dependabot; they send no notification.
+  - package-ecosystem: uv
+    directory: /
+    schedule:
+      interval: weekly
+      day: monday
+    cooldown:
+      default-days: 7
+    commit-message:
+      prefix: build
+      include: scope
+    groups:
+      minor-and-patch:
+        update-types: [minor, patch]

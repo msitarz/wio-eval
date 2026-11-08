@@ -1,0 +1,7 @@
+# Configuration file for `tach`, which checks the dependency direction between
+# the packages of `src/wio_eval`, and between `scripts` and the groups of `tests`.
+# See https://docs.gauge.sh/ for more information.
+
+source_roots = ["src", "."]
+exact = false
+ignore_type_checking_imports = false

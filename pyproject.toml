@@ -1,0 +1,215 @@
+[project]
+name = "wio-eval"
+version = "0.0.1"
+description = "Work It Out! Evaluation Harness"
+readme = "README.md"
+license = "Apache-2.0"
+license-files = ["LICENSE"]
+authors = [
+    { name = "Michal Sitarz", email = "28092472+msitarz@users.noreply.github.com" }
+]
+requires-python = ">=3.15"
+dependencies = []
+
+[project.urls]
+Homepage = "https://github.com/msitarz/wio-eval"
+Repository = "https://github.com/msitarz/wio-eval"
+Issues = "https://github.com/msitarz/wio-eval/issues"
+
+[build-system]
+requires = ["uv_build>=0.13.5,<0.14.0"]
+build-backend = "uv_build"
+
+[tool.uv]
+# Supply-chain guard: ignore any release uploaded in the last 7 days.
+exclude-newer = "7 days"
+
+[tool.uv.sources]
+# PyPI has no wheel of quickjs-ng for Intel macOS and its source build fails
+# there, so that one platform uses a wheel built in a fork. uv.lock records its
+# hash. Every other platform takes the PyPI wheel.
+quickjs-ng = [
+  { url = "https://github.com/msitarz/quickjs-ng/releases/download/v0.17.0.1-intel-macos/quickjs_ng-0.17.0.1-cp310-abi3-macosx_10_15_x86_64.whl", marker = "sys_platform == 'darwin' and platform_machine == 'x86_64'" },
+]
+
+[tool.commitizen]
+name = "cz_conventional_commits"
+tag_format = "v$version"
+version_scheme = "pep440"
+version_provider = "uv"
+update_changelog_on_bump = true
+major_version_zero = true
+
+[tool.pyrefly]
+project_includes = [
+  "scripts",
+  "src",
+  "tests",
+]
+search_path = ["src", "."]
+python_version = "3.15"
+preset = "strict"
+
+[tool.pytest]
+minversion = "9.0"
+strict = true  # strict config, markers, xfail and parametrization ids
+pythonpath = ["."]
+testpaths = ["tests"]
+filterwarnings = ["error"]
+markers = [
+    "channels(*channels): run once per listed Channel",
+    "slow: spawns a real subprocess (git, the CLI) or builds the package",
+    # One marker per directory under tests/, set by tests/conftest.py.
+    "unit: tests/unit, one module with its collaborators replaced",
+    "integration: tests/integration, code with something real behind it",
+    "acceptance: tests/acceptance, behaviour asserted through the DSL",
+    "tooling: tests/tooling, the repository's configuration and hygiene",
+    "packaging: tests/packaging, the built wheel and sdist",
+    "scripts: tests/scripts, the scripts of the repository",
+]
+addopts = [
+  "-ra",
+  "--tb=short",
+  "--import-mode=importlib",
+  "-m", "not slow",  # `pytest -m slow` runs the slow tests (builds, real CLI)
+  "-p", "no:tach",  # tach is enforced by its hook; its plugin only adds a banner
+]
+
+[tool.coverage.run]
+branch = true
+source = ["src/wio_eval"]
+omit = [
+  "src/wio_eval/__init__.py",
+]
+
+[tool.coverage.report]
+fail_under = 95
+show_missing = true
+skip_covered = false
+exclude_lines = [
+  "pragma: no cover",
+  "if TYPE_CHECKING:",
+  "if __name__ == .__main__.:",
+  "@(abc\\.)?abstractmethod",
+  "raise NotImplementedError",
+  "\\.\\.\\.\\s*$",           # ellipsis stub bodies (Protocols, overloads)
+]
+
+[tool.ruff.format]
+docstring-code-format = true
+
+[tool.ruff.lint]
+preview = true
+explicit-preview-rules = true  # preview only enables rules selected by exact code
+unfixable = ["ERA001"]  # --fix must not delete commented-out code
+extend-select = [
+    "ANN",   # annotations everywhere, tests included
+    "ARG",   # unused arguments
+    "A",     # builtin shadowing
+    "B",     # bugbear
+    "CPY001",  # SPDX license header (preview rule, selected explicitly)
+    "C901",  # McCabe complexity (default limit 10); complexipy covers cognitive complexity
+    "D",     # docstrings (google convention below)
+    "E501",  # line length 88, docstrings included; the formatter cannot wrap them
+    "EM",    # exception message style
+    "ERA",   # commented-out code
+    "FBT",   # boolean positional arguments
+    "I",     # import sorting
+    "N",     # pep8-naming
+    "PERF",  # performance anti-patterns
+    "PT",    # pytest style
+    "PTH",   # pathlib over os / os.path
+    "RET",   # return consistency
+    "SIM",   # simplifications
+    "PLR0916",  # too many boolean expressions in an if (preview rule)
+    "SLF",   # private member access
+    "TC",    # typing-only imports under TYPE_CHECKING
+    "T20",   # print / pprint: write to sys.stdout instead
+    "TID",   # banned / relative imports
+    "UP",    # pyupgrade
+]
+
+[tool.ruff.lint.pylint]
+max-statements = 20
+max-bool-expr = 3
+
+[tool.ruff.lint.flake8-annotations]
+suppress-none-returning = true  # test_* and other None-returning functions need no `-> None`
+
+[tool.ruff.lint.pydocstyle]
+convention = "google"
+
+[tool.ruff.lint.flake8-copyright]
+# The SPDX line must be the first line, or the second after a shebang.
+notice-rgx = '\A(#!.*\n)?# SPDX-License-Identifier: Apache-2\.0\n'
+
+[tool.ruff.lint.isort]
+known-first-party = ["wio_eval"]
+
+[tool.ruff.lint.per-file-ignores]
+"tests/**" = ["S101", "D", "PLR2004", "TID251"]
+"scripts/**" = ["TID251"]
+"*.pyi" = ["PYI048", "PIE790"]  # stubs carry a docstring plus `...`
+
+[tool.rumdl]
+line-length = 80
+respect-gitignore = true
+exclude = ["CHANGELOG.md"]  # generated by commitizen
+
+[tool.rumdl.per-file-ignores]
+".github/PULL_REQUEST_TEMPLATE.md" = ["MD041"]  # no H1: the PR title is the heading
+
+[tool.rumdl.code-block-tools]
+enabled = true
+on-error = "fail"
+on-missing-tool-binary = "fail"
+timeout = 30000
+
+[tool.rumdl.code-block-tools.tools.mermaid-check]
+command = ["python", "scripts/check_mermaid.py"]
+stdin = true
+stdout = false
+
+[tool.rumdl.code-block-tools.languages.mermaid]
+enabled = true
+lint = ["mermaid-check"]
+
+[tool.rumdl.MD013]
+reflow = true
+code_blocks = false  # code is formatted by ruff, not rumdl
+tables = false
+
+[tool.deptry.per_rule_ignores]
+# deptry treats only `tests` as development code. `scripts/check_mermaid.py` is
+# development tooling that imports a development dependency.
+DEP004 = ["mermaidx"]
+
+[tool.typos.default.extend-words]
+CPY = "CPY"  # ruff rule prefix (flake8-copyright)
+
+[tool.typos.files]
+extend-exclude = ["CHANGELOG.md"]  # generated by commitizen
+
+[tool.complexipy]
+max-complexity-allowed = 7
+
+[dependency-groups]
+dev = [
+    "actionlint-py>=1.7.12.25",
+    "commitizen>=4.19.3",
+    "complexipy>=8.3.0",
+    "deptry>=0.25.1",
+    "jscpd>=5.4.2",
+    "prek>=0.5.9",
+    "pyrefly>=1.4.0",
+    "pytest>=9.2.0",
+    "pytest-cov>=7.1.0",
+    "pytest-randomly>=5.0.0",
+    "ruff>=0.17.3",
+    "rumdl>=0.3.2",
+    "tach>=0.35.3",
+    "typos>=1.51.1",
+    "zizmor>=1.31.1",
+    "quickjs-ng==0.17.0.1",
+    "mermaidx==0.9.5",
+]

@@ -1,0 +1,12 @@
+{
+  "format": ["python"],
+  "ignore": ["**/*.pyi"],
+  "minTokens": 50,
+  "minLines": 5,
+  "ignoreIdentifiers": true,
+  "maxGapLines": 3,
+  "similarity": 0.8,
+  "reporters": ["console"],
+  "gitignore": true,
+  "exitCode": 1
+}

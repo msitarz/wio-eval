@@ -1,0 +1,53 @@
+# Configuration file for `prek`, a git hook framework written in Rust.
+# See https://prek.j178.dev for more information.
+#:schema https://www.schemastore.org/prek.json
+
+# `prek install` sets up every stage the hooks below use (commitizen runs at
+# commit-msg), not only pre-commit.
+default_install_hook_types = ["pre-commit", "commit-msg"]
+
+[[repos]]
+repo = "builtin"
+hooks = [
+    { id = "trailing-whitespace" },
+    { id = "end-of-file-fixer" },
+    { id = "mixed-line-ending" },
+    { id = "fix-byte-order-marker" },
+    { id = "check-added-large-files" },
+    { id = "check-case-conflict" },
+    { id = "check-merge-conflict" },
+    { id = "check-toml" },
+    { id = "check-yaml" },
+    { id = "check-json" },
+    { id = "check-symlinks" },
+    { id = "destroyed-symlinks" },
+    { id = "check-executables-have-shebangs" },
+    { id = "check-shebang-scripts-are-executable" },
+    { id = "detect-private-key" },
+]
+
+[[repos]]
+repo = "https://github.com/gitleaks/gitleaks"
+# Dependabot cannot update this; keep it in step with GITLEAKS_VERSION in
+# .github/workflows/secrets.yml.
+rev = "v8.30.1"
+hooks = [{ id = "gitleaks" }]
+
+[[repos]]
+repo = "local"
+hooks = [
+    { id = "ruff-check", name = "ruff check", entry = "uv run ruff check --force-exclude --fix", language = "system", types_or = ["python", "pyi", "jupyter"] },
+    { id = "ruff-format", name = "ruff format", entry = "uv run ruff format --force-exclude", language = "system", types_or = ["python", "pyi", "jupyter", "markdown"] },
+    { id = "complexipy", name = "complexipy", entry = "uv run complexipy", language = "system", types_or = ["python", "pyi", "jupyter"] },
+    { id = "commitizen", name = "commitizen check", entry = "uv run cz check --allow-abort --commit-msg-file", language = "system", stages = ["commit-msg"] },
+    { id = "actionlint", name = "actionlint (workflows)", entry = "uv run actionlint", language = "system", files = '^\.github/(workflows|actions)/.*\.ya?ml$' },
+    { id = "zizmor", name = "zizmor (workflow security)", entry = "uv run zizmor --offline", language = "system", files = '^\.github/((workflows|actions)/.*|dependabot)\.ya?ml$' },
+    { id = "uv-lock", name = "uv lock --check", entry = "uv lock --check", language = "system", files = '^(pyproject\.toml|uv\.lock)$', pass_filenames = false },
+    { id = "deptry", name = "deptry (dependencies)", entry = "uv run deptry .", language = "system", files = '^(pyproject\.toml|uv\.lock|src/.*\.pyi?|tests/.*\.py)$', pass_filenames = false },
+    { id = "tach", name = "tach check", entry = "uv run tach check", language = "system", files = '^((src|scripts|tests)/.*\.py|tach\.toml|pyproject\.toml)$', pass_filenames = false },
+    { id = "typos", name = "typos (spell check)", entry = "uv run typos --force-exclude", language = "system", types = ["text"] },
+    { id = "rumdl", name = "rumdl (markdown)", entry = "uv run rumdl check --fix", language = "system", types = ["markdown"] },
+    { id = "jscpd", name = "jscpd (duplicate code)", entry = "uv run jscpd src tests", language = "system", types_or = ["python"], pass_filenames = false },
+    { id = "pyrefly", name = "pyrefly check", entry = "uv run pyrefly check", language = "system", types_or = ["python", "pyi"], pass_filenames = false },
+    { id = "pytest", name = "pytest (coverage)", entry = "uv run pytest --cov", language = "system", types_or = ["python", "pyi"], pass_filenames = false },
+]

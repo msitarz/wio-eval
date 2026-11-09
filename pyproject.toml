@@ -1,7 +1,7 @@
 [project]
 name = "wio-eval"
 version = "0.0.1"
-description = "Work It Out! Evaluation Harness"
+description = "Work It Out! Evaluation Engine"
 readme = "README.md"
 license = "Apache-2.0"
 license-files = ["LICENSE"]

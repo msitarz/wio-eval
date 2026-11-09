@@ -79,6 +79,9 @@ Single tools, for quick feedback:
 
 ## Workflow
 
+Follow [docs/workflow.md](docs/workflow.md) for work requiring a contract.
+Use it manually while wio automation is under development.
+
 - Commit messages follow Conventional Commits. The commitizen hook checks them.
 - Never skip hooks (`--no-verify`).
 - Commit when a step is done and checks pass. Keep commits small, one concern

@@ -1,0 +1,27 @@
+# The rules for writing and reviewing Work contracts. The `contract` root selects
+# `authoring`, so the define stage gets it, and the gates and the amend and
+# ratify stages add the preset for their own work. The rules for links and
+# diagrams live in `writing`, which the docs share.
+description = "How to write and review Work contracts."
+
+[families]
+CON = "Contract sections"
+ACC = "Acceptance criteria"
+CST = "Constraints"
+VIS = "Visuals"
+
+# Every rule for writing a contract, without those that only a review, an
+# amendment or a ratify needs.
+[rule_presets.authoring]
+rules_include = ["CON", "ACC", "CST", "VIS"]
+rules_exclude = ["review", "amend", "ratify"]
+
+# What a reviewer checks beyond the authoring rules.
+[rule_presets.review]
+rules_include = ["ACC009", "ACC010", "CON011"]
+
+[rule_presets.amend]
+rules_include = ["CON012"]
+
+[rule_presets.ratify]
+rules_include = ["CON013"]

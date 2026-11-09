@@ -1,0 +1,8 @@
+# Rules for the documents next to the code: the README.md and GLOSSARY.md of
+# each directory. The `repo` root selects the whole ruleset, and promote-docs
+# and its gate select that root; the code stages of deliver and their reviews
+# exclude it.
+description = "How to write the README and GLOSSARY files next to the code."
+
+[families]
+DOC = "Docs next to the code"

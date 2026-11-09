@@ -485,6 +485,18 @@ wheels = [
 ]
 
 [[package]]
+name = "pytest-asyncio"
+version = "1.4.1.post1"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "pytest" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/73/7f/c60a4338420b33453d4f814ac0c930abd399f162b9bdd21af4b9e363037f/pytest_asyncio-1.4.1.post1.tar.gz", hash = "sha256:f582d9ea4a1c082195abe8bd29a1fe106aeb1cd435e3dad2d3bc2749935c36a2", size = 145360, upload-time = "2026-11-01T18:26:03.732Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/e3/de/adbc7578959cfab07e5e7c05cf6d54224a51e7667ea2c07458b6bc571e75/pytest_asyncio-1.4.1.post1-py3-none-any.whl", hash = "sha256:0755e488cc0a2b9bd2eab7292cc6390d4cbb8390f1020745647bae5a708e0165", size = 17140, upload-time = "2026-11-01T18:26:02.168Z" },
+]
+
+[[package]]
 name = "pytest-cov"
 version = "7.1.0"
 source = { registry = "https://pypi.org/simple" }
@@ -803,6 +815,7 @@ dev = [
     { name = "prek" },
     { name = "pyrefly" },
     { name = "pytest" },
+    { name = "pytest-asyncio" },
     { name = "pytest-cov" },
     { name = "pytest-randomly" },
     { name = "quickjs-ng", version = "0.17.0.1", source = { registry = "https://pypi.org/simple" }, marker = "platform_machine != 'x86_64' or sys_platform != 'darwin'" },
@@ -827,6 +840,7 @@ dev = [
     { name = "prek", specifier = ">=0.5.9" },
     { name = "pyrefly", specifier = ">=1.4.0" },
     { name = "pytest", specifier = ">=9.2.0" },
+    { name = "pytest-asyncio", specifier = ">=1.4.1.post1" },
     { name = "pytest-cov", specifier = ">=7.1.0" },
     { name = "pytest-randomly", specifier = ">=5.0.0" },
     { name = "quickjs-ng", marker = "platform_machine != 'x86_64' or sys_platform != 'darwin'", specifier = "==0.17.0.1" },

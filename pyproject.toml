@@ -212,4 +212,5 @@ dev = [
     "zizmor>=1.31.1",
     "quickjs-ng==0.17.0.1",
     "mermaidx==0.9.5",
+    "pytest-asyncio>=1.4.1.post1",
 ]

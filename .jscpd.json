@@ -4,6 +4,7 @@
   "minTokens": 50,
   "minLines": 5,
   "ignoreIdentifiers": true,
+  "ignoreAnnotations": true,
   "maxGapLines": 3,
   "similarity": 0.8,
   "reporters": ["console"],

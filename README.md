@@ -68,14 +68,14 @@ what happened. Your evaluator interprets the results.
 
 These are design goals, not a claim that every capability is available today.
 
-## Works with WIO—and without it
+## Works with wio—and without it
 
-[WIO](https://github.com/msitarz/wio) defines workflows, behavioral guidance,
+[wio](https://github.com/msitarz/wio) defines workflows, behavioral guidance,
 Work contracts, and stage progression. wio-eval is intended to run and compare
-locked WIO workflows against the same starting task, capturing stage activity
+locked wio workflows against the same starting task, capturing stage activity
 and artifacts for an external evaluator.
 
-WIO remains responsible for workflow orchestration. wio-eval remains useful on
+wio remains responsible for workflow orchestration. wio-eval remains useful on
 its own, including for prompt comparisons, harness comparisons,
 repository-guidance experiments, and custom research protocols.
 

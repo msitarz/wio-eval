@@ -74,6 +74,7 @@ addopts = [
   "-m", "not slow",  # `pytest -m slow` runs the slow tests (builds, real CLI)
   "-p", "no:tach",  # tach is enforced by its hook; its plugin only adds a banner
 ]
+asyncio_default_fixture_loop_scope = "function"
 
 [tool.coverage.run]
 branch = true

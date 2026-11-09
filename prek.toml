@@ -40,6 +40,8 @@ hooks = [
     { id = "ruff-format", name = "ruff format", entry = "uv run ruff format --force-exclude", language = "system", types_or = ["python", "pyi", "jupyter", "markdown"] },
     { id = "complexipy", name = "complexipy", entry = "uv run complexipy", language = "system", types_or = ["python", "pyi", "jupyter"] },
     { id = "commitizen", name = "commitizen check", entry = "uv run cz check --allow-abort --commit-msg-file", language = "system", stages = ["commit-msg"] },
+    # Stand-in for wio trailers check until that command exists.
+    { id = "records", name = "Wio-* records", entry = "uv run python scripts/records.py check", language = "system", stages = ["commit-msg"] },
     { id = "actionlint", name = "actionlint (workflows)", entry = "uv run actionlint", language = "system", files = '^\.github/(workflows|actions)/.*\.ya?ml$' },
     { id = "zizmor", name = "zizmor (workflow security)", entry = "uv run zizmor --offline", language = "system", files = '^\.github/((workflows|actions)/.*|dependabot)\.ya?ml$' },
     { id = "uv-lock", name = "uv lock --check", entry = "uv lock --check", language = "system", files = '^(pyproject\.toml|uv\.lock)$', pass_filenames = false },

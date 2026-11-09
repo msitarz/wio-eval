@@ -98,5 +98,6 @@ workflow it follows.
 When the wio CLI supports this workflow, validate changes to the config and
 contracts with its checks and record stage results using its supported
 interfaces. Until then, inspect these files directly and run `make check` for
-the checks this repository actually provides. No wio hook or automatic
-progression is assumed by this workflow.
+the checks this repository actually provides. The commit-msg hook checks the
+shape of `Wio-*` records; the Records workflow carries them into squash merges.
+Neither provides automatic workflow progression.

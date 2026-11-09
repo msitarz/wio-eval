@@ -1,0 +1,83 @@
+name: Records
+
+# Squash merging replaces a pull request's commit messages with its body, so
+# this workflow checks the Wio-* records of the commits and copies them to the
+# end of the body, where they survive the merge. `edited` brings back records
+# that an edit of the body removed. Edits made with GITHUB_TOKEN start no new
+# runs, and a body that is already right is not edited at all.
+on:
+  pull_request:
+    types: [opened, edited, reopened, synchronize]
+
+permissions: {}
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+env:
+  UV_LOCKED: "1"
+
+jobs:
+  records:
+    name: records
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      contents: read
+      pull-requests: write
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+          fetch-depth: 0
+      - uses: astral-sh/setup-uv@68559e99cc807c1eb7e9238fd43a15bba460eec2 # v10.3.3
+        with:
+          enable-cache: true
+          prune-cache: true
+      - run: uv sync --locked
+      - name: Check the records of the commits
+        env:
+          BASE: ${{ github.event.pull_request.base.sha }}
+          HEAD: ${{ github.event.pull_request.head.sha }}
+        run: uv run python scripts/records.py commits "$BASE..$HEAD"
+      - name: Copy the records to the body
+        # Records are folded by the script. The token
+        # of a pull request from a fork cannot edit the body.
+        if: github.event.pull_request.head.repo.full_name == github.repository
+        env:
+          GH_TOKEN: ${{ github.token }}
+          BASE: ${{ github.event.pull_request.base.sha }}
+          HEAD: ${{ github.event.pull_request.head.sha }}
+          NUMBER: ${{ github.event.pull_request.number }}
+          BODY: ${{ github.event.pull_request.body }}
+        run: |
+          printf '%s' "$BODY" > "$RUNNER_TEMP/old.md"
+          uv run python scripts/records.py body "$BASE..$HEAD" \
+            < "$RUNNER_TEMP/old.md" > "$RUNNER_TEMP/new.md"
+          if [ -s "$RUNNER_TEMP/new.md" ]; then
+            gh pr edit "$NUMBER" --repo "$GITHUB_REPOSITORY" --body-file "$RUNNER_TEMP/new.md"
+          fi
+      - name: Ask a fork to add the records to the body
+        # The workflow cannot edit a fork's pull request, so it checks the body
+        # instead and shows the paragraphs to paste at its end.
+        if: github.event.pull_request.head.repo.full_name != github.repository
+        env:
+          BASE: ${{ github.event.pull_request.base.sha }}
+          HEAD: ${{ github.event.pull_request.head.sha }}
+          BODY: ${{ github.event.pull_request.body }}
+        run: |
+          printf '%s' "$BODY" > "$RUNNER_TEMP/old.md"
+          uv run python scripts/records.py body "$BASE..$HEAD" \
+            < "$RUNNER_TEMP/old.md" > "$RUNNER_TEMP/new.md"
+          if [ -s "$RUNNER_TEMP/new.md" ]; then
+            {
+              echo "Add these paragraphs to the end of the pull request body:"
+              echo
+              echo '```text'
+              uv run python scripts/records.py block "$BASE..$HEAD"
+              echo '```'
+            } >> "$GITHUB_STEP_SUMMARY"
+            echo "::error::The body lacks the commits' records; see the job summary."
+            exit 1
+          fi

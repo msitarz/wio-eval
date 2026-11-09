@@ -83,6 +83,29 @@ Follow [docs/workflow.md](docs/workflow.md) for work requiring a contract.
 Use it manually while wio automation is under development.
 
 - Commit messages follow Conventional Commits. The commitizen hook checks them.
+- End each commit message with a `Wio-*` trailer paragraph identifying its Work,
+  action and stage; use `Wio-Work: none` for a commit outside a Work. For
+  several Works with identical remaining fields, list their ids separated by a
+  comma and one space, dependencies and children first. Otherwise use separate
+  paragraphs. The commit-msg hook checks record shape. Until `wio trailers`
+  exists, write records by hand.
+
+  ```text
+  Wio-Work: k3m9xq
+  Wio-Action: deliver
+  Wio-Stage: architecture
+  Wio-Items: AC-1, AC-3
+  ```
+
+  | Trailer | Meaning |
+  | --- | --- |
+  | `Wio-Work` | A Work id, a comma-separated list of ids, or `none`. |
+  | `Wio-Action` | The action, such as `define` or `deliver`. |
+  | `Wio-Stage` | The stage the commit works on. |
+  | `Wio-Items` | Optional item ids addressed, such as `AC-1`. |
+  | `Wio-Result` | For a gate: `pass`, `fail` or `unknown`. |
+  | `Wio-Judge` | For a gate with a result: `agent` or `human`. |
+
 - Never skip hooks (`--no-verify`).
 - Commit when a step is done and checks pass. Keep commits small, one concern
   each.
@@ -91,5 +114,6 @@ Use it manually while wio automation is under development.
   branch, run `make check`, push the branch and use `gh pr create`.
 - The pull request title is a Conventional Commit. Squash merging makes it the
   commit on `main`, and CI checks it.
-- Fill in `.github/PULL_REQUEST_TEMPLATE.md` and delete every HTML comment
-  from the body.
+- Fill in `.github/PULL_REQUEST_TEMPLATE.md` and delete every HTML comment from
+  the body. The Records workflow copies commit records into the body for squash
+  merges. For a PR from a fork, paste the records shown in the job summary.

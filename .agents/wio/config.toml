@@ -1,0 +1,264 @@
+# wio-eval workflow configuration; docs/workflow.md explains its use.
+# The wio engine is in development; use this workflow manually until supported.
+
+# What a gate can decide. Records and review events use these values.
+[gates]
+results = ["pass", "fail", "unknown"]
+
+# Works keep one directory per Work, nested under their parents.
+[works]
+hierarchy = "nesting"
+
+[trailers]
+# GitHub's squash merge appends a Co-authored-by paragraph after the records
+# that the Records workflow copies into the body, so git's own parser would not
+# find them.
+reader = "scan"
+
+# Each kind and the template new Works of that kind start from.
+[templates.kinds]
+feature = "feature.draft"
+
+# `wio next` proposes actions in the order that `after` gives, ties by name, and
+# never proposes an action marked `on_demand`. `invalidated_by` says which
+# newer records make an action's stages stale; it implies no order.
+[actions.define]
+description = """\
+Turn an intent into a Work contract: interview the driver, write the contract \
+in the leaf or parent template, split it into child Works when it holds \
+several outcomes, and review it."""
+
+[actions.deliver]
+# Proposed once the Work is defined. Redefining or amending it, or delivering
+# one of its children again, makes its delivery stale.
+after = ["define"]
+invalidated_by = ["define", "amend", "@descendants:deliver"]
+description = """\
+Build what a Work contract says, one stage at a time, with a review after each \
+stage. A leaf goes from typed boundaries through wiring to implementation; a \
+parent integrates its delivered children."""
+
+[actions.amend]
+# Only when the driver asks for it. `deliver` lists it in `invalidated_by`.
+on_demand = true
+description = """\
+Change a defined contract's criteria, assumptions or constraints as the driver \
+decided, keeping its template, and review the change. The delivered stages \
+become stale and are redone."""
+
+[actions.ratify]
+# Only when the driver asks for it. A ratify needs no rework, so `deliver` does
+# not list it in `invalidated_by`.
+on_demand = true
+description = """\
+Update a contract to match what was built, without reworking anything, such as \
+correcting a diagram or a criterion's wording after the implementation showed \
+the better form. A change of intent is an amendment, through amend."""
+
+# Each root's rule_presets are the rules of every stage that selects the root,
+# and they reach those rulesets, so a stage can add or exclude their rules.
+[roots.contract]
+paths = [".agents/wio/works"]
+rule_presets = ["contracts.authoring", "writing.all"]
+
+[roots.wio-eval]
+paths = ["src", "tests", "scripts"]
+rule_presets = ["contract-upkeep.all"]
+
+# Everything else in the repository: docs, CI, the Makefile, skills. It
+# overlaps the other roots, which is allowed: roots select rules by name.
+[roots.repo]
+paths = ["."]
+rule_presets = ["contract-upkeep.all", "docs.all", "writing.all"]
+
+# Stages. A stage marked `gate` judges an artifact, and each of its records
+# carries a result. `session = "fresh"` asks for a new agent session, so the
+# reviewer does not share the author's context. The define, amend and ratify
+# stages select the contract root, whose presets give the rules for writing
+# contracts, and their gates and the amend and ratify stages add the contracts
+# preset they need. The deliver stages select the Work's roots, whose
+# contract-upkeep ruleset reminds the agent that writes code how to keep the
+# contract true. The promote stages select the repo root, whose docs and
+# writing rulesets say how to write the docs next to the code. A stage excludes
+# the families its roots bring that it does not need, so each stage gets only
+# the rules for its own work.
+
+[stages.define]
+# The wio-define skill takes over this goal once it exists; until then the goal
+# carries its steps, so this config passes its own check.
+goal = """\
+Interview the driver until the intent is clear, using the draft's Purpose and \
+Intent as working space. Decide whether the Work is a leaf or a parent, print \
+that template with `wio templates show <name> --work <id>` (without \
+`--keep`, so the new template's roots and actions apply), and rewrite the \
+contract in its shape; the Intent section does not carry over. Ask the driver for anything still missing. For a parent, \
+create its children with `wio contracts new feature --parent <id> --title \
+<title>`. Check the result with `wio contracts check`."""
+roots = ["contract"]
+
+[stages.review-contract]
+gate = true
+judge = "human"
+goal = """\
+Judge the contract, in its final template, by the rules: is the outcome clear, \
+are guesses listed as assumptions, can every criterion fail, is every goal \
+covered? Then ask the driver to confirm that the contract states what they \
+meant. Record the result with `wio trailers --result --judge human`, and `pass` \
+only once the driver has confirmed."""
+rules_include = ["contracts.review"]
+roots = ["contract"]
+session = "fresh"
+
+[stages.amend]
+goal = """\
+Change the contract's criteria, assumptions or constraints as the driver \
+decided, keep its template, and name the changed ids in the commit message. \
+For a parent, list the children the change affects. Check the result with \
+`wio contracts check`."""
+rules_include = ["contracts.amend"]
+roots = ["contract"]
+
+[stages.architecture]
+goal = "Write the typed boundaries and the test stubs the contract needs."
+# Writing code needs no rule for writing docs, which the repo root brings.
+rules_exclude = ["docs.DOC", "writing.WRT"]
+
+[stages.architecture-review]
+gate = true
+goal = """\
+Judge the typed boundaries and test stubs against the contract, and record \
+the result with `wio trailers --result`."""
+# A review judges the code against the contract, so it needs no rule for
+# writing code or docs, which the Work's roots bring.
+rules_exclude = ["contract-upkeep.UPK", "docs.DOC", "writing.WRT"]
+session = "fresh"
+
+[stages.wiring]
+goal = "Compose the boundaries into a running skeleton with stubbed leaves."
+# Writing code needs no rule for writing docs, which the repo root brings.
+rules_exclude = ["docs.DOC", "writing.WRT"]
+
+[stages.wiring-review]
+gate = true
+goal = """\
+Judge the wired skeleton against the contract and the boundaries, and record \
+the result with `wio trailers --result`."""
+# A review judges the code against the contract, so it needs no rule for
+# writing code or docs, which the Work's roots bring.
+rules_exclude = ["contract-upkeep.UPK", "docs.DOC", "writing.WRT"]
+session = "fresh"
+
+[stages.implementation]
+goal = "Implement the stubbed leaves until the tests and checks pass."
+# Writing code needs no rule for writing docs, which the repo root brings.
+rules_exclude = ["docs.DOC", "writing.WRT"]
+
+[stages.implementation-review]
+gate = true
+goal = """\
+Judge the implementation against the contract, and record the result \
+with `wio trailers --result`."""
+# A review judges the code against the contract, so it needs no rule for
+# writing code or docs, which the Work's roots bring.
+rules_exclude = ["contract-upkeep.UPK", "docs.DOC", "writing.WRT"]
+session = "fresh"
+
+[stages.integration]
+goal = """\
+Join the delivered children and add the tests for the parent's system-level \
+criteria."""
+# Writing code needs no rule for writing docs, which the repo root brings.
+rules_exclude = ["docs.DOC", "writing.WRT"]
+
+[stages.system-review]
+gate = true
+goal = """\
+Judge the integrated result against the parent's criteria, and record the \
+result with `wio trailers --result`."""
+# A review judges the code against the contract, so it needs no rule for
+# writing code or docs, which the Work's roots bring.
+rules_exclude = ["contract-upkeep.UPK", "docs.DOC", "writing.WRT"]
+session = "fresh"
+
+[stages.review-amendment]
+gate = true
+judge = "human"
+goal = """\
+Judge the amendment: did it change only what the driver decided, with the \
+changed ids named, and does the contract still hold together? Ask the driver \
+to confirm the amended parts state what they meant. Record the result with \
+`wio trailers --result --judge human`, and `pass` only once the driver has \
+confirmed."""
+rules_include = ["contracts.amend", "contracts.review"]
+roots = ["contract"]
+session = "fresh"
+
+[stages.ratify]
+goal = """\
+Update the contract to match what was built, without changing its intent, and \
+check it with `wio contracts check`."""
+rules_include = ["contracts.ratify"]
+roots = ["contract"]
+
+[stages.review-ratify]
+gate = true
+goal = """\
+Judge the ratify: did it only bring wording, diagrams and links in line with \
+what was built, and does every criterion still guarantee what it did? If a \
+guarantee changed, the result is `fail`, and the change belongs in an \
+amendment. Record the result with `wio trailers --result`."""
+rules_include = ["contracts.ratify", "contracts.review"]
+roots = ["contract"]
+session = "fresh"
+
+[stages.promote-docs]
+goal = """\
+Carry the lasting rules, reasons and diagrams of the contracts this Work \
+promotes into the README.md and GLOSSARY.md of the directories they touched, \
+linking instead of copying. The sources are the Work's contract, those of its \
+descendants, and those of the delivered Works its contract says it retires. A \
+Work with a parent only promotes: it deletes no contract, because the tree is \
+kept until its top Work has promoted. A Work without a parent then asks the \
+driver whether its contracts are spent, and keeps them until the driver \
+confirms. Once the driver confirms, the last commit of the stage deletes the \
+Work's contract, those of its descendants, and those of each Work it retires \
+with that Work's descendants. That confirmation is the driver's own, and is \
+not the judgment of docs-review."""
+# The docs are written after the code, so the rules for keeping the contract
+# true while writing code, which the repo root brings, do not apply.
+rules_exclude = ["contract-upkeep.UPK"]
+roots = ["repo"]
+
+[stages.docs-review]
+gate = true
+judge = "human"
+goal = """\
+Judge whether the docs lost any guarantee of the promoted contracts. Read a \
+contract from the working tree when it was kept, and from the commit before \
+its deletion when it was deleted. Check that every guarantee it states is kept: \
+in the README.md and GLOSSARY.md files with its reason, or in a stub, \
+docstring or test that they link to. Then ask the driver to confirm the review; their confirmation of the deletion does not stand for it. \
+Record the result with `wio trailers --result --judge human`, and `pass` only \
+once the driver has confirmed. On `fail`, the deletion is reverted and \
+promote-docs is done again."""
+# The docs are written after the code, so the rules for keeping the contract
+# true while writing code, which the repo root brings, do not apply.
+rules_exclude = ["contract-upkeep.UPK"]
+roots = ["repo"]
+session = "fresh"
+
+[stage_presets]
+define-feature = ["define", "review-contract"]
+amend-contract = ["amend", "review-amendment"]
+ratify-contract = ["ratify", "review-ratify"]
+typed-boundary = [
+    "architecture",
+    "architecture-review",
+    "wiring",
+    "wiring-review",
+    "implementation",
+    "implementation-review",
+    "promote-docs",
+    "docs-review",
+]
+integrate = ["integration", "system-review", "promote-docs", "docs-review"]

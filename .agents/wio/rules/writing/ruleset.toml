@@ -1,0 +1,7 @@
+# Rules for writing any document, contracts and the docs next to the code
+# alike. The `contract` and `repo` roots select the whole ruleset; the code
+# stages of deliver and their reviews exclude it.
+description = "How to write any document: links and diagrams."
+
+[families]
+WRT = "Writing"

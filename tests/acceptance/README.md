@@ -2,7 +2,8 @@
 
 This guide adds to the [test strategy](../README.md): it describes the
 acceptance DSL and the CLI and InProcess channels intended for wio-eval. The
-DSL and channels are not implemented yet.
+channel selection, facade and driver interfaces are in place; the drivers will
+be wired to wio-eval when it has an executable entry point.
 
 ## 1. Principles
 
@@ -47,5 +48,6 @@ bounded waiting helpers where needed.
 Run the same applicable scenarios through both channels; a scenario that passes
 on one should pass on the other. Select the CLI channel for behavior that only a
 real process can expose. CLI scenarios are slow under the test strategy and run
-with `make slow`; in-process scenarios run in the default fast suite. Channel
-selection and driver implementation will be added with the acceptance DSL.
+with `make slow`; in-process scenarios run in the default fast suite. The
+drivers need a real application entry point and test environment before
+scenarios can exercise wio-eval through them.

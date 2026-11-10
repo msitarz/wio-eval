@@ -292,3 +292,60 @@ source.
 The next scenario examines cumulative turn and session totals over time,
 including repeated snapshots and what can be concluded from an interrupted
 stream.
+
+## 3. Turn and session snapshots over time
+
+A source can report a running total more than once. Consider two turns, with
+input counts only for clarity:
+
+| Report | Scope | Input tokens | Interpretation in this example |
+| --- | --- | ---: | --- |
+| A | Turn 1, first snapshot | 100 | Running turn total |
+| B | Turn 1, later snapshot | 250 | Includes A |
+| C | Session, after turn 1 | 250 | Includes turn 1 |
+| D | Turn 2, final report | 80 | Separate turn |
+| E | Session, after turn 2 | 330 | Includes C and turn 2 |
+
+These are synthetic reports under an assumed cumulative-counter contract. Adding
+A, B, C, D and E yields a meaningless total. When source semantics and ordering
+establish that E is the final session snapshot, it reports 330 input tokens;
+B and D may independently support a derived sum of 330 if their scopes are
+complete and non-overlapping. They are alternative accounts of the same usage,
+not extra contributions to E.
+
+```jsonc
+{
+  "scope": { "kind": "session", "native_id": "session-1" },
+  "report_kind": "cumulative_snapshot",
+  "sequence": 5,                     // Order within this source
+  "tokens": { "input_total": 330 },
+  "finality": "unknown",             // Last observed is not necessarily final
+  "evidence": [{ "source_id": "source-1", "locator": {
+    "kind": "jsonl_line", "line": 20
+  }}]
+}
+```
+
+The source contract must establish what the counter covers, when it resets and
+whether a later snapshot supersedes an earlier one. A turn-ending event alone
+does not prove that all delayed accounting has arrived. A session may resume,
+a stream may end early, and a harness may report revised values. Preserve
+snapshots, their ordering and any finality evidence. Do not derive deltas by
+subtraction across a reset, an unknown boundary or incompatible definitions.
+If counters decrease or disagree unexpectedly, retain the reports and surface a
+diagnostic rather than forcing monotonicity.
+
+A summary should name its basis: a reported snapshot, or a sum of distinct
+reports with their contributors and coverage. Reconciliation can compare
+compatible bases, but matching numbers do not prove completeness. When the
+source is interrupted, the last observed snapshot is a snapshot through an
+unknown point, not a final session total by default.
+
+### Questions for review: snapshots
+
+1. Which source-specific events establish finality, and can usage arrive after
+   them or change on resume?
+2. How should counter resets, corrections and incompatible snapshots be
+   represented without losing their history?
+3. What coverage and scope evidence is sufficient for comparing a reported
+   total with a sum of turn reports?

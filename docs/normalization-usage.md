@@ -443,3 +443,52 @@ values. It must not infer non-overlap from different session IDs alone.
    relationship changes during delegation or resumption?
 3. How should a consumer request parent-only, inclusive-tree or observed-only
    usage when the source cannot establish all three?
+
+## 6. Missing, partial and conflicting reports
+
+Usage can be absent because a harness did not expose it, capture was
+interrupted, a record was malformed or a value was redacted. These cases do not
+mean the same thing. A reported zero is an observation; a missing count is not.
+The [provenance proposal](normalization-provenance.md) describes the broader
+distinctions, which usage records must carry through to aggregates.
+
+Suppose a source reports 100 input tokens but no output count. The output is
+unknown; the combined input-plus-output total cannot be calculated as 100. A
+sum across ten trials with output reports for seven can describe those seven
+observations and its denominator, but must not present their mean as the mean
+of all ten trials. Whether the missing three were systematically different is
+outside what the recorded numbers establish.
+
+```jsonc
+{
+  "scope": { "kind": "configuration", "id": "config-1" },
+  "measure": "output_total",
+  "statistic": "mean",
+  "value": 42,
+  "denominator": 7,                  // Trials with usable observations
+  "planned_trials": 10,
+  "coverage": "partial",            // Three planned trials lack a usable value
+  "contributions": ["trial-1-output", "trial-2-output"]
+  // Illustrative excerpt: the other five contribution IDs are omitted.
+}
+```
+
+A diagnostic should identify the affected scope, source and reason where known,
+without exposing redacted data. Unsupported or unparsable records remain
+available as raw evidence. The adapter should distinguish a known missing
+report from uncertainty about whether the source was complete.
+
+If two reports claim the same scope and category but disagree, preserve both,
+their provenance and the conflict. They may reflect different accounting times,
+revisions, semantics or capture errors; equality of names does not settle which.
+A later source-specific rule may reconcile them when supported by evidence. An
+aggregate must state which eligible reports it used and why, or leave the
+measure unresolved if it cannot choose safely.
+
+### Questions for review: incomplete data
+
+1. Which availability and diagnostic states should be queryable for every
+   measure, and how are redaction and unknown completeness represented?
+2. Should aggregates include counts of planned, completed and usable trials
+   separately, and what should happen when their denominator is zero?
+3. How are reported revisions distinguished from genuinely conflicting values?

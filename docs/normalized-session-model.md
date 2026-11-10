@@ -188,6 +188,16 @@ observations or supporting evidence, depending on their established identity.
 Unknown content types retain a reference to their native representation rather
 than being silently discarded.
 
+### Incremental message content
+
+Some sources emit message fragments rather than complete messages. Preserve
+each fragment's source order, exact content and available identity. A complete
+message reconstructed from fragments is a derived view only when a verified
+source-specific rule establishes the grouping and its completion; an
+interrupted stream may leave it partial. The
+[Gemini CLI comparison](harness-comparison-gemini.md) illustrates why a message
+identifier or boundary cannot always be assumed.
+
 ## 6. Tool calls and results
 
 A tool call and result are separate observations linked when a native identifier

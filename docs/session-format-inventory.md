@@ -338,7 +338,77 @@ activity is reported activity, not proof of every filesystem change. Raw
 session files and other native artifacts need stable references independent of
 any normalized view.
 
-## 8. Questions for the schema design
+## 8. Format evolution and adapter compatibility
+
+Native session formats can change. Claude's documentation explicitly describes
+its on-disk transcript format as internal and subject to change between
+releases, and recommends its script interfaces for building on session data
+([Claude session documentation](https://code.claude.com/docs/en/sessions)).
+OpenAI's rollout reconstruction code handles different history modes and older
+recorded history, illustrating that Codex persistence also has compatibility
+cases
+([Codex rollout reconstruction](https://github.com/openai/codex/blob/main/codex-rs/core/src/session/rollout_reconstruction.rs)).
+Those observations do not establish a complete history of breaking changes.
+
+The inspected files carry **producer version** information, which is useful
+provenance but is not necessarily a schema version:
+
+```jsonc
+{
+  "type": "assistant",
+  "version": "example-cli-version"  // Claude producer version on an entry
+}
+```
+
+```jsonc
+{
+  "type": "session_meta",
+  "payload": {
+    "cli_version": "example-cli-version"  // Codex producer version
+  }
+}
+```
+
+The inspected Claude files contain multiple producer versions, and one file
+contains more than one version marker. Codex files also report multiple CLI
+versions across sessions. Different observed record types across versions do
+not by themselves prove a format change: session activity, configuration and
+client mode can differ. No independent schema-version marker was found among
+the top-level fields searched in these local JSON Lines records. That limited
+search does not prove no such marker exists elsewhere, and a producer version
+must not be treated as a documented compatibility promise.
+
+The on-disk files are only one interface. Claude documents `stream-json` and
+its Agent SDK as programmatic interfaces
+([programmatic use](https://code.claude.com/docs/en/headless),
+[SDK types](https://platform.claude.com/docs/en/agent-sdk/typescript)); Codex
+has its own non-interactive event interface
+([Codex non-interactive mode](https://developers.openai.com/codex/noninteractive/)).
+Their schemas, versions and stability must be investigated separately from
+persisted sessions. A documented interface is not automatically guaranteed to
+have the same content or compatibility policy as the on-disk format.
+
+For a future adapter, the likely approach is one integration per harness with
+source-specific readers and compatibility handling for **verified format
+changes**, rather than a separate implementation for every CLI release:
+
+1. Record the harness, producer version when known, source interface and the
+   normalizer's own version. Keep any reported format version distinct.
+2. Select known decoding rules using available version and structural evidence.
+   Account for missing, conflicting or mixed producer versions; do not rely on
+   the installed CLI version to identify an older file's producer.
+3. Preserve raw records and unknown fields or event types. Expose unsupported or
+   ambiguous interpretation and partial normalization instead of silently
+   dropping evidence or claiming complete support.
+4. Test compatibility against sanitized fixtures from supported releases and
+   execution modes, including actual breaking changes when identified.
+
+The supported ranges, behavior for unknown versions and how a session spanning
+versions is decoded remain design decisions. Separately versioning wio-eval's
+normalized result format lets external evaluators identify its contract without
+confusing it with either a native format or an adapter implementation version.
+
+## 9. Questions for the schema design
 
 1. Which native identifiers and links can reliably correlate calls, results,
    messages, turns, subagents and multiple representations of the same activity?

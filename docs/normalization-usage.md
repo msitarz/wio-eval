@@ -492,3 +492,74 @@ measure unresolved if it cannot choose safely.
 2. Should aggregates include counts of planned, completed and usable trials
    separately, and what should happen when their denominator is zero?
 3. How are reported revisions distinguished from genuinely conflicting values?
+
+## 7. Cost and non-token measures
+
+Token usage, money, duration and quota state answer different questions. A
+subscription-backed execution may have token counts without a defensible
+per-trial monetary charge. An API price multiplied by tokens could be a
+hypothetical estimate under stated assumptions, but it is not the subscription
+fee or a provider-measured charge. wio-eval must not silently substitute one for
+another.
+
+A cost record should identify its scope, currency, source and basis. A reported
+amount, an estimate from a documented pricing model and an unavailable cost are
+distinct. A cost estimate needs its pricing source, applicable model and rate
+period, calculation, input usage and assumptions so it can be reproduced. If
+those inputs are incomplete or pricing does not apply, no precise cost should be
+invented. This synthetic example illustrates a hypothetical estimate:
+
+```jsonc
+{
+  "scope": { "kind": "model_response", "id": "response-1" },
+  "measure": "cost",
+  "amount": "0.0025",                 // Decimal amount, not a token count
+  "currency": "USD",
+  "status": "estimated",
+  "basis": {
+    "kind": "hypothetical_api_pricing",
+    "pricing_artifact": "pricing-1",  // Preserved pricing and effective period
+    "usage_observations": ["usage-1"],
+    "rule": "example-pricing-rule"
+  }
+}
+```
+
+This example does not imply that such an estimate is available or meaningful
+for every harness or subscription. Native cost reports may themselves be
+estimates; retain the source's qualification rather than labeling them as
+measured charges. Aggregating amounts also requires compatible currency,
+scope, time and basis, and must avoid overlap with constituent reports.
+
+Durations have different boundaries too: wall-clock trial duration, harness
+session duration, model request duration, tool time and quota waiting can
+overlap. They cannot all be added without a defined rule. Record their units,
+scope, start and end or reported duration, clock source when known, and whether
+they were directly observed or derived. A quota interruption or wait is an
+execution event, not a token or money measure; capture its timing and evidence
+separately. Quota state may be unavailable or a provider estimate.
+
+### Questions for review: cost and other measures
+
+1. Which provider-reported costs are estimates, charges or another kind of
+   value, and what terms or time periods qualify them?
+2. Which pricing sources and calculations are defensible for a given execution,
+   particularly when using a subscription or an unknown model configuration?
+3. How should duration boundaries and overlapping intervals be represented so
+   downstream summaries can calculate only supported measures?
+4. What quota information can a harness reliably expose, and how is its
+   uncertainty communicated without turning a quota wait into an agent failure?
+
+## 8. Outcomes to carry forward
+
+The scenarios point toward preserving each native report with scope and
+provenance, then deriving summaries from explicitly selected, compatible and
+non-overlapping observations. Completeness and denominators belong with the
+summary. Where source semantics, overlap or coverage are unknown, the result
+must preserve that uncertainty rather than manufacture a precise total.
+
+The examples are proposals. Before fixing a versioned schema, investigate
+source-specific semantics across harness versions and execution modes, test
+against sanitized fixtures and live captures, and settle the open questions in
+each scenario. External evaluators remain responsible for interpreting what
+the resulting resource usage means.

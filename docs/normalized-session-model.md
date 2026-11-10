@@ -160,6 +160,16 @@ can connect observations, but a missing link remains unknown. Where several
 sources overlap, normalization preserves their references and only combines
 representations when their identity is supported by evidence.
 
+### Updates to observations
+
+A source can report successive states, corrections or removal of the same
+message or tool part. Preserve those native events and their order. A current
+view may be derived using verified source-specific identity and update rules,
+but it must retain references to the contributing evidence and expose missing
+or conflicting updates. Repeated states are not automatically independent
+calls, and a removal from a native view does not erase retained evidence. The
+[OpenCode comparison](harness-comparison-opencode.md) illustrates this case.
+
 ## 5. Messages and content
 
 A message contains a role and an ordered collection of content parts. Text,

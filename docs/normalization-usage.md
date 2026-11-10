@@ -349,3 +349,52 @@ unknown point, not a final session total by default.
    represented without losing their history?
 3. What coverage and scope evidence is sufficient for comparing a reported
    total with a sum of turn reports?
+
+## 4. Retries and interruptions
+
+A trial can have more than one attempt. An interrupted attempt may already have
+consumed tokens; a later infrastructure retry does not erase that usage or
+become another independent trial. Model-level retries within an attempt are also
+possible, but are a separate boundary from a wio-eval attempt.
+
+```mermaid
+flowchart LR
+    T[One trial] --> A1[Attempt 1: interrupted]
+    T --> A2[Attempt 2: completed]
+    A1 --> U1[Observed usage: 100 input]
+    A2 --> U2[Observed usage: 200 input]
+```
+
+In this synthetic example, a trial-level resource summary may report 300 input
+tokens **only if** both observations have compatible semantics, represent
+non-overlapping calls and cover the intended attempt scope. If the interrupted
+attempt has an incomplete usage stream, 300 is at most the sum of the observed
+reports; it is not a verified complete trial total. The record retains both
+attempts and their individual coverage.
+
+```jsonc
+{
+  "scope": { "kind": "trial", "id": "trial-1" },
+  "measure": "input_total",
+  "value": 300,
+  "status": "derived",
+  "coverage": "unknown",            // Interrupted attempt may have more usage
+  "contributions": ["attempt-1-usage", "attempt-2-usage"]
+}
+```
+
+The runner owns attempt identity and records interruption and retry evidence.
+The adapter reports model usage and any native retry evidence it can observe.
+A failed call without a usage report has unknown usage, not zero; the engine
+must not manufacture a model-call record merely from a process retry. A later
+scenario must decide how trial-level summaries account for partial attempts
+across repetitions without losing denominators.
+
+### Questions for review: retries
+
+1. When can the runner establish that a recovered session belongs to the same
+   attempt or to a new attempt without duplicating earlier usage?
+2. Which harnesses expose model-call retries and their usage, and which only
+   report a combined or incomplete total?
+3. How should a trial summary show known usage alongside unknown consumption
+   from interrupted attempts?

@@ -398,3 +398,48 @@ across repetitions without losing denominators.
    report a combined or incomplete total?
 3. How should a trial summary show known usage alongside unknown consumption
    from interrupted attempts?
+
+## 5. Subagents and parallel sessions
+
+An agent can delegate work to a child session while the parent continues. A
+parent usage report might cover only the parent, or it might include children;
+the relationship depends on the source's documented semantics. Concurrent
+activity does not make their usage independent if one report already includes
+another.
+
+Suppose the parent reports 500 input tokens and a child reports 200:
+
+- If the parent report is known to exclude the child, both reports are complete
+  and their scopes do not overlap, their combined input is 700.
+- If the parent report is known to include that child, adding 200 again would
+  double count. The parent report is 500 for its stated inclusive scope.
+- If inclusion is unknown, both reports remain available, but neither 500 nor
+  700 is established as a complete combined total.
+
+```jsonc
+{
+  "scope": { "kind": "session", "id": "parent-session" },
+  "measure": "input_total",
+  "value": 500,
+  "child_coverage": "unknown",      // Proposed label, not a native field
+  "evidence": [{ "source_id": "source-1", "locator": {
+    "kind": "jsonl_line", "line": 20
+  }}]
+}
+```
+
+Record observed parent-child relationships and their sources independently of
+usage. A known relationship does not establish usage inclusion. Missing child
+sessions, unknown relationships, parent snapshots and multiple source views can
+all affect coverage. A summary across parallel sessions needs compatible scopes,
+deduplicated observations and evidence of inclusion or exclusion before adding
+values. It must not infer non-overlap from different session IDs alone.
+
+### Questions for review: subagents
+
+1. For each supported source and version, do parent reports include child
+   usage, and do child reports include their own descendants?
+2. How can the runner and adapter identify missing child evidence and trace
+   relationship changes during delegation or resumption?
+3. How should a consumer request parent-only, inclusive-tree or observed-only
+   usage when the source cannot establish all three?

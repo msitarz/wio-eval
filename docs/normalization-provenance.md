@@ -182,6 +182,22 @@ representation permits it. A partial final line, unavailable source and
 redaction each need distinct diagnostics; none proves that the harness emitted
 no other activity. Diagnostics themselves must not leak redacted content.
 
+### Native records and derived views
+
+A retained native record is not necessarily a live observation: a harness may
+synthesize a recovery or fork marker, or store a projection of earlier activity.
+Preserve the source's stated origin separately from wio-eval's own observation
+and inference status. A model-visible conversation, human-facing transcript
+and full event log can be different views. Each derived view needs its source
+and reconstruction rule; it must not replace the underlying evidence. The
+[DeepSeek Harness comparison](harness-comparison-deepseek.md) illustrates these
+boundaries.
+
+A locator may also have physical and logical components. For compressed or
+packed sources, identify the preserved artifact and the decoding or migration
+needed to reach a logical event; do not present a decoded sequence number as a
+physical byte offset. Exact locator encoding remains open.
+
 ## 4. Proposed decisions and remaining questions
 
 For review, this document proposes that:

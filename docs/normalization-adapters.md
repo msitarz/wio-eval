@@ -100,3 +100,50 @@ changing the result format. Conversely, a result-format change is not evidence
 that a harness changed. Exact numbering, evolution rules and migration policy
 remain for a future contract; unknown versions must not be silently treated as
 known-compatible.
+
+## 3. Adapter boundaries
+
+A harness adapter provides the integration for a harness. Its execution side
+invokes the configured harness and exposes available native evidence; its
+normalization side interprets that evidence. These responsibilities can share
+code, but offline normalization must be possible from preserved evidence without
+starting the harness again. Source-specific readers handle distinct interfaces
+and verified version differences within that integration.
+
+```mermaid
+flowchart LR
+    RUN[Runner and execution driver] --> INV[Harness invocation]
+    INV --> RAW[Preserved native evidence]
+    RAW --> DEC[Source-specific decoding]
+    DEC --> MAP[Source-specific interpretation]
+    MAP --> OUT[Normalized records and diagnostics]
+    RAW --> OUT
+```
+
+The runner owns the experiment plan, trial and attempt identities, process
+lifecycle and workspace observations. The adapter owns harness-specific
+invocation and interpretation of the harness sources it supports. An execution
+driver defines bounded trial progression. Neither the adapter nor the
+normalizer decides whether an agent's behavior was desirable.
+
+Decoding reads the preserved representation, identifies its interface and
+available version evidence, and yields native records or diagnostics. It must
+preserve unknown data and distinguish physical locations from decoded logical
+locations. Interpretation applies verified source-specific rules to produce
+observations, relationships, usage reports and their evidence references.
+Native identities and source origin remain available; source-synthesized events
+must not be presented as directly observed live events.
+
+A rule may join multiple native representations only when the relationship is
+supported. It records the basis and retains each source reference. A missing
+call, ambiguous match, conflict, partial message or unsupported field must not
+be repaired by guessing. Adapters can produce partial results with explicit
+diagnostics; the result must say what could and could not be interpreted.
+Derived aggregates are separate from source decoding and retain their inputs,
+scope and coverage.
+
+An adapter should declare source interfaces and verified compatibility ranges
+or capabilities, rather than requiring a wholly separate adapter for every
+harness release. A release can introduce an incompatible change in one source
+interface without changing another. Exact interfaces, dispatch rules and
+compatibility-range representation remain open to future Work contracts.

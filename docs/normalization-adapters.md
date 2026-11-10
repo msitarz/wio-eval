@@ -54,3 +54,49 @@ redaction changes bytes, the retained redacted artifact gets its own identity
 and digest, and the redaction and resulting limits are recorded. The model must
 not leak withheld content through a locator or diagnostic. The exact digest,
 locator variants and field-level encoding remain open for a Work contract.
+
+## 2. Separate versions
+
+A result needs enough version information to explain both the native evidence
+and its interpretation. These are independent identities, even when a product
+happens to use the same number for more than one:
+
+| Identity | What it identifies |
+| --- | --- |
+| Normalized result format | The contract a consumer uses to read normalized records. |
+| Adapter | The implementation and rules that interpreted the native evidence. |
+| Harness producer | The harness build that produced an event or artifact, where known. |
+| Source interface | The kind of source, such as a CLI stream, protocol or persisted session. |
+| Native format or protocol | A source-specific format or protocol version, if established. |
+
+```jsonc
+{
+  "normalized_format": { "name": "wio-eval-result", "version": "example" },
+  "normalization": {
+    "adapter": "example-harness",
+    "adapter_version": "example-adapter-version",
+    "ruleset": "example-ruleset"
+  },
+  "source": {
+    "harness": "example-harness",
+    "producer_version": "example-producer-version",
+    "interface": "session_file",
+    "native_format_version": "example-format-version"
+  }
+}
+```
+
+These placeholders do not prescribe version numbering or claim that every
+source has a format marker. A missing version stays unknown. A CLI version is
+not automatically a schema version, and the currently installed binary is not
+proof of which version produced an older session. A file can contain mixed
+producer versions; record version evidence at the scope supported by the source
+rather than forcing one value for the whole artifact.
+
+The normalized format needs a documented compatibility policy: consumers must
+be able to identify its version and detect unsupported changes. Adapter changes
+can improve interpretation without changing the native evidence or necessarily
+changing the result format. Conversely, a result-format change is not evidence
+that a harness changed. Exact numbering, evolution rules and migration policy
+remain for a future contract; unknown versions must not be silently treated as
+known-compatible.

@@ -550,6 +550,16 @@ separately. Quota state may be unavailable or a provider estimate.
 4. What quota information can a harness reliably expose, and how is its
    uncertainty communicated without turning a quota wait into an agent failure?
 
+### Known exclusions and incomplete scope
+
+A report can be complete according to its source's definition while still
+excluding known categories of activity. Record both the scope's known inclusions
+and exclusions and whether accounting within that scope is complete. These are
+separate claims: a complete prompt report that excludes side-model calls is not
+a complete account of all model activity. Unknown inclusion remains unknown,
+and a source-reported incomplete flag must be preserved. The
+[Grok comparison](harness-comparison-grok.md) provides an example.
+
 ## 8. Outcomes to carry forward
 
 The scenarios point toward preserving each native report with scope and

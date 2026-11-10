@@ -229,3 +229,111 @@ proximity alone.
 3. How should attempt-level captures relate to trial-level output when a retry
    uses a fresh workspace or resumes a prior one?
 4. How are shared-workspace effects and uncertain attribution represented?
+
+## 3. Environment evidence
+
+A frozen task and repository revision do not describe everything an agent can
+see or do. Environment evidence records the execution conditions that can be
+specified or observed: harness and tool versions, platform, permissions,
+configuration and workspace isolation, among others. It should help a consumer
+compare executions without claiming that the environment is completely known
+or reproducible.
+
+### Intended and observed conditions
+
+An experiment can request a harness version or isolation mode. The runner can
+also observe what it actually launched or prepared. Those are separate claims
+with separate sources; a configured value is not proof of the effective value.
+
+```jsonc
+{
+  "kind": "environment_observation",
+  "attempt_id": "attempt-1",
+  "subject": "harness",
+  "data": {
+    "name": "example-harness",
+    "version": "example-version"
+  },
+  "observation_status": "observed", // Reported by a version command
+  "evidence": [{ "source_id": "version-output", "locator": {
+    "kind": "byte_range", "start": 0, "end": 32
+  }}]
+}
+```
+
+A harness may also report its own version in session metadata. If two sources
+conflict, preserve both and their scope: an installed binary, launched binary
+and session producer might not be the same. The same applies to tools found on
+`PATH` versus tools actually used. An absent version is unknown unless a
+reliable check establishes a more specific reason.
+
+### Permissions and isolation
+
+The result can record requested and observable sandbox, approval, network and
+filesystem conditions. An isolation mode is an experimental condition, not an
+unqualified security guarantee. A shared workspace is explicitly non-isolated;
+a container or other isolated workspace needs its runtime and effective
+configuration recorded where observable.
+
+```jsonc
+{
+  "kind": "environment_observation",
+  "attempt_id": "attempt-1",
+  "subject": "workspace_isolation",
+  "data": {
+    "requested_mode": "isolated",
+    "observed_mechanism": "container",
+    "image_digest": "sha256:example", // Placeholder, not a real digest
+    "network_policy": "unknown"       // No observed effective policy
+  },
+  "observation_status": "observed",
+  "evidence": [{ "source_id": "runtime-inspection", "locator": {
+    "kind": "jsonl_line", "line": 4
+  }}]
+}
+```
+
+The requested mode and runtime inspection need separate provenance even when
+shown together. A runtime configuration may describe intended restrictions
+without proving every effective permission or behavior. If a value is inferred
+from configuration rather than observed at runtime, label that inference and
+its basis. If the policy or enforcement cannot be determined, leave it unknown.
+
+### Configuration, changes and sensitive values
+
+Environment information can change within an attempt: a tool version, working
+directory or harness configuration may differ between sessions. Observations
+need a scope and an effective or observed time where available. A snapshot is
+evidence at its capture point, not proof that the value stayed constant.
+
+Configuration and environment variables can contain credentials or private
+data. Capture only what is needed under the experiment's redaction policy;
+record that a value was withheld without exposing it in normalized output,
+diagnostics or raw artifacts intended for sharing. A hash or reference is not
+a substitute for a secret-handling policy, and a redacted value does not prove
+two environments had identical secrets or behavior.
+
+### Connecting the evidence
+
+A runner observation can apply to an experiment, trial, attempt, workspace or
+session. Attach it only at a scope supported by its source. When a harness
+reports a context change within a session, preserve that report alongside the
+runner's environment observations; do not overwrite a conflicting value or
+assume they describe the same instant.
+
+Together, lifecycle, repository and environment records provide context for
+session evidence. They still leave gaps: external services, provider behavior,
+unobserved dependencies and unavailable settings can differ. A result should
+state capture limitations and support comparison of known conditions without
+asserting full reproducibility.
+
+### Questions for review: environment
+
+1. Which environment attributes are required, optional or unavailable for each
+   workspace and execution mode, and when are they captured?
+2. How can configured, effective, observed and inferred permissions be
+   distinguished across platforms and isolation mechanisms?
+3. How should conflicting observations and changes over time be represented
+   and linked to the sessions or events they apply to?
+4. Which values can be retained, hashed or redacted without leaking credentials
+   or implying equivalence that cannot be established?

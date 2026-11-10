@@ -131,6 +131,16 @@ are candidate sources. A native parent or sidechain marker needs interpretation
 before it becomes a normalized parent-session link. Conflicting or unknown
 relationships stay visible as such.
 
+### Branches and context views
+
+A session can contain branches rather than one linear conversation. Preserve
+native entry identities, parent relationships and source order separately. A
+selected branch or reconstructed model-visible context is an evidence-backed
+view, with its selection and reconstruction rules identified where known; it
+does not replace alternate branches. Do not choose a branch from file order
+alone or assume copied history represents new usage. The
+[Pi comparison](harness-comparison-pi.md) illustrates this distinction.
+
 ## 4. Observations and ordering
 
 Observations share an envelope: identity, session, kind, source references and

@@ -195,3 +195,54 @@ subagents, authentication paths or execution modes. The example, credentials,
 quota and network use, and whether it can be run without a paid API are choices
 for its future contract. A failed check does not retroactively invalidate past
 results; it reports the observed compatibility of that check.
+
+## 5. Re-normalization
+
+A later adapter may understand evidence that an earlier one could not, correct
+an interpretation or produce a newer result format. Re-normalization reads the
+preserved native evidence and creates a **new normalized view**; it does not
+rerun the agent or modify the original artifact or earlier view.
+
+```mermaid
+flowchart LR
+    RAW[Preserved native evidence] --> A1[Adapter version A]
+    RAW --> A2[Adapter version B]
+    A1 --> V1[Normalized view 1]
+    A2 --> V2[Normalized view 2]
+    V1 --> CMP[Optional comparison]
+    V2 --> CMP
+```
+
+Each view identifies its input artifacts and integrity digests, adapter and rule
+versions, normalized format version, configuration that affects interpretation,
+and diagnostics and coverage. A consumer can identify the view it analyzed and
+follow its claims to the same retained source. Re-normalization cannot recover
+content that was never captured or was redacted; a newer adapter must continue
+to report those limits.
+
+```jsonc
+{
+  "view_id": "view-2",
+  "derived_from": ["source-1"],       // Identifies immutable input artifacts
+  "adapter": { "name": "example-harness", "version": "version-b" },
+  "normalized_format": "example-version",
+  "supersedes": "view-1",             // Optional explicit relationship
+  "coverage": "partial"
+}
+```
+
+`supersedes` is an illustrative relationship, not permission to delete or
+silently overwrite the earlier view. A consumer may need the view used by a
+previous analysis even when a newer interpretation exists. Stable identities
+within a view and links between views need a future contract; two observations
+should not be declared the same merely because their generated IDs or content
+match. A comparison can report changed values, relationships, diagnostics or
+coverage, with provenance for both interpretations.
+
+A result may reference more than one view, but must make its selected view and
+aggregate inputs explicit. Aggregates are recalculated or retained as separate
+versioned outputs tied to their contributing view; mixing old and new
+observations can double count the same activity. Publishing, selecting or
+removing views and artifacts needs explicit lifecycle and retention rules. These
+design outcomes need versioned fixtures and live captures before they become an
+implementation contract.

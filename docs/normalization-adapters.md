@@ -147,3 +147,51 @@ or capabilities, rather than requiring a wholly separate adapter for every
 harness release. A release can introduce an incompatible change in one source
 interface without changing another. Exact interfaces, dispatch rules and
 compatibility-range representation remain open to future Work contracts.
+
+## 4. Compatibility and checks
+
+Compatibility is scoped to an adapter version, source interface, producer or
+native format version where known, and the capabilities actually supported.
+A parser accepting a record does not prove it interpreted the whole source. A
+compatibility report should distinguish verified support from partial support,
+unknown compatibility and unsupported input, with diagnostics identifying the
+affected scope and evidence.
+
+```jsonc
+{
+  "adapter": "example-harness",
+  "adapter_version": "example-version",
+  "source_interface": "session_file",
+  "producer_version": "unknown",     // Missing is not a supported version
+  "status": "partial",
+  "diagnostics": [{
+    "kind": "unknown_event_type",
+    "impact": "not_normalized",
+    "source_id": "source-1",
+    "locator": { "kind": "jsonl_line", "line": 8 }
+  }]
+}
+```
+
+Status names and representation are illustrative. Unknown events and fields
+remain accessible through the preserved artifact; diagnostics should identify
+whether they affect normalization or coverage without exposing redacted data.
+Malformed input, missing expected evidence, incompatible versions and
+uncertain correlation must not silently become an empty successful result. The
+consumer needs to distinguish a complete supported interpretation from a
+partial or unresolved one.
+
+Sanitized fixtures for supported versions and source interfaces provide
+repeatable regression coverage for known changes, unknown records, truncation,
+retries and overlaps. The proposed `wio-eval harness check` can additionally run
+a bounded example against an installed harness and feed its captured evidence
+through the same adapter. Its report names the versions and interfaces
+exercised, expected and observed capabilities, gaps and diagnostics. It should
+preserve inspectable evidence subject to redaction and cleanup policy.
+
+A passing live check establishes only that the tested example worked under its
+recorded conditions. It does not certify all event types, providers, versions,
+subagents, authentication paths or execution modes. The example, credentials,
+quota and network use, and whether it can be run without a paid API are choices
+for its future contract. A failed check does not retroactively invalidate past
+results; it reports the observed compatibility of that check.

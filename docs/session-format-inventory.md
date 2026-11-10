@@ -11,7 +11,10 @@ The inventory covers uncompressed JSON Lines session files under Claude's
 object. It does not cover compressed or archived files, harness stdout or
 stderr, all auxiliary files, or provider documentation. Field names below are
 examples of observed shapes, not guarantees that every record has those fields.
-Values and private conversation content are intentionally omitted.
+Examples use synthetic values and omit private conversation content. The
+`jsonc` examples are illustrative excerpts: comments explain fields, and omitted
+fields are not implied to be absent. They are not literal JSON Lines records or
+complete schemas.
 
 ## 1. How the sources are structured
 
@@ -43,117 +46,297 @@ infer independent trials from native sessions.
 
 ## 2. Session and execution context
 
-Claude entries can contain `sessionId`, `uuid`, `parentUuid`, `timestamp`,
-`version`, `cwd` and `gitBranch`. Other observed fields include `agentId`,
-`isSidechain`, `sessionKind` and permission-related context. Not all entries
-carry the same envelope. Claude also has separate metadata entries for things
-such as session title, mode and ownership.
+A Claude transcript entry can carry session context alongside the message. Not
+all entry types use the same envelope:
 
-Codex has a `session_meta` record with identifiers, timestamp, `cli_version`,
-working directory, source, model provider and Git information. `turn_context`
-records can describe the model, reasoning effort, working directory, approval
-policy and sandbox or permission profile for a turn. Parent thread and agent
-fields also occur in metadata. A context record is evidence of reported
-configuration; it is not necessarily a complete description of the environment.
+```jsonc
+{
+  "type": "user",                    // Kind of transcript entry
+  "sessionId": "session-1",          // Native session identifier
+  "uuid": "entry-1",                 // Identifier of this entry
+  "parentUuid": null,                // Previous or parent entry, if present
+  "timestamp": "2026-01-01T12:00:00Z",
+  "version": "example-version",      // Reported Claude version
+  "cwd": "/workspace/project",       // Working directory
+  "gitBranch": "experiment",         // Reported Git branch
+  "isSidechain": false,              // Sidechain marker
+  "message": { "role": "user", "content": "Describe the project." }
+}
+```
 
-For a common model, the open question is how to represent session identity,
-parentage, context changes and native source identifiers without assuming that
-either harness exposes the same boundaries or hierarchy.
+Codex separates session metadata from turn context. These excerpts represent
+two records, each on its own line in a session file:
+
+```jsonc
+{
+  "timestamp": "2026-01-01T12:00:00Z",
+  "ordinal": 1,                      // Sequence field, where present
+  "type": "session_meta",
+  "payload": {
+    "id": "session-1",               // Native session identifier
+    "cli_version": "example-version",
+    "cwd": "/workspace/project",
+    "model_provider": "example-provider",
+    "source": "cli"                  // Reported session source
+  }
+}
+```
+
+```jsonc
+{
+  "type": "turn_context",
+  "payload": {
+    "turn_id": "turn-1",             // Native turn identifier
+    "model": "example-model",
+    "effort": "high",                // Reported reasoning effort
+    "cwd": "/workspace/project",
+    "approval_policy": "on-request"
+  }
+}
+```
+
+Other observed fields include Claude agent and permission context and Codex
+parent-thread and sandbox information. Context is evidence of reported
+configuration, not necessarily a complete environment description. The common
+model must represent identity, parentage and context changes without assuming
+that the two harnesses expose the same boundaries.
 
 ## 3. Messages and conversation
 
-Claude `user` and `assistant` entries contain messages. Message content can be
-text or typed blocks, including `text`, `thinking`, `tool_use` and
-`tool_result`. Assistant messages can include a model, message identifier,
-stop reason and usage. Separate `system` entries include turn duration, local
-commands and compaction boundaries among other subtypes. Attachments and
-queue operations also appear as entries.
+Claude message content can be a string or a list of typed blocks. An assistant
+text entry can have this shape:
 
-Codex `response_item` payloads include `message`, `reasoning` and
-`agent_message` types. Message records can carry role, content, phase and
-status; reasoning can contain a summary or encrypted content. Lifecycle records
-can also contain completed `UserMessage`, `AgentMessage` and `Reasoning` items.
-Compaction has its own records and context information.
+```jsonc
+{
+  "type": "assistant",
+  "uuid": "entry-2",
+  "parentUuid": "entry-1",
+  "message": {
+    "id": "message-1",              // Native message identifier
+    "role": "assistant",
+    "model": "example-model",
+    "content": [
+      { "type": "text", "text": "The project contains an application." }
+    ],
+    "stop_reason": "end_turn"        // When reported by the harness
+  }
+}
+```
 
-A normalized conversation needs to preserve roles, content structure, ordering,
+Other blocks include `thinking`, `tool_use` and `tool_result`. Separate system
+entries can describe turn duration, local commands and compaction boundaries;
+attachments and queue operations also appear as entries.
+
+Codex puts message data in a typed response payload:
+
+```jsonc
+{
+  "type": "response_item",
+  "payload": {
+    "type": "message",              // Response item type
+    "id": "message-1",
+    "role": "assistant",
+    "content": [
+      { "type": "output_text", "text": "The project contains an application." }
+    ]
+  }
+}
+```
+
+Codex also records `reasoning` and `agent_message` response items. Lifecycle
+records can contain completed `UserMessage`, `AgentMessage` and `Reasoning`
+items. Compaction has its own records and context information.
+
+A normalized conversation needs roles, content structure, ordering,
 relationships and source references where available. It must not assume that
-reasoning or complete message content is readable. It must also avoid counting a
-response item and a completed-item representation of the same activity twice;
-their exact correlation needs further investigation.
+reasoning or complete message content is readable. A response item and a
+completed-item representation may describe the same activity; their exact
+correlation needs further investigation to avoid double counting.
 
 ## 4. Tool and MCP activity
 
-Claude assistant messages contain `tool_use` blocks with an identifier, name and
-input. User messages can contain `tool_result` blocks that refer to a
-`tool_use_id`, carry content and indicate an error. Some user entries also have
-`toolUseResult` metadata with fields such as command, output, status, duration
-or file details. Available fields depend on the tool.
+Claude represents a tool call in an assistant entry and its result in a user
+entry. The identifiers connect the two blocks:
 
-Codex response items include `function_call`, `custom_tool_call` and their
-corresponding output types, linked by `call_id`. Completed lifecycle items can
-provide richer typed views, including `CommandExecution`, `FileChange`,
-`McpToolCall` and `CollabAgentToolCall`. Their fields can include command,
-working directory, exit code, duration, server, tool, arguments, result and
-status, depending on the item.
-
-```mermaid
-flowchart LR
-    CALL[Native tool call] --> ID[Native correlation identifier]
-    ID --> RESULT[Native tool result]
-    RESULT --> DETAIL[Additional activity details, if exposed]
+```jsonc
+{
+  "type": "assistant",
+  "message": {
+    "role": "assistant",
+    "content": [{
+      "type": "tool_use",
+      "id": "call-1",                // Identifier of this tool call
+      "name": "Bash",                // Native tool name
+      "input": { "command": "pwd" }  // Tool-specific arguments
+    }]
+  }
+}
 ```
 
-The common model needs calls and results, native identities, available timing
-and outcomes, and room for tool-specific details. A missing exit code or
-duration must remain missing. Whether a tool name identifies an MCP server and
-tool reliably in Claude's records needs separate investigation; it must not be
-inferred solely from a naming convention.
+```jsonc
+{
+  "type": "user",
+  "message": {
+    "role": "user",
+    "content": [{
+      "type": "tool_result",
+      "tool_use_id": "call-1",       // Refers to the tool call
+      "content": "/workspace/project",
+      "is_error": false
+    }]
+  }
+}
+```
+
+Some user entries also have `toolUseResult` metadata with command, output,
+status, duration or file details. The available fields depend on the tool.
+
+Codex function calls and outputs use a shared `call_id`:
+
+```jsonc
+{
+  "type": "response_item",
+  "payload": {
+    "type": "function_call",
+    "call_id": "call-1",             // Links call and output
+    "name": "example_tool",
+    "arguments": "{\"command\":\"pwd\"}"  // Serialized arguments
+  }
+}
+```
+
+```jsonc
+{
+  "type": "response_item",
+  "payload": {
+    "type": "function_call_output",
+    "call_id": "call-1",
+    "output": "/workspace/project"  // Output shape varies by item type
+  }
+}
+```
+
+Codex also has custom tool calls and completed lifecycle items such as
+`CommandExecution`, `FileChange`, `McpToolCall` and `CollabAgentToolCall`.
+These can expose command, exit code, duration, server, tool, arguments, result
+and status, depending on the item.
+
+The common model needs native identities, available timing and outcomes, and
+room for tool-specific details. A missing exit code or duration must remain
+missing. Whether Claude tool names reliably identify an MCP server and tool
+needs investigation; a naming convention alone is not sufficient evidence.
 
 ## 5. Model usage
 
-Claude assistant message usage can include `input_tokens`, `output_tokens`,
-`cache_creation_input_tokens` and `cache_read_input_tokens`, with nested cache
-creation and output detail fields in some records. Separate `cost-state` entries
-can contain model usage, durations and a reported total cost.
+Claude usage can be attached to an assistant message:
 
-Codex has `token_usage_record` records with usage fields at response, turn and
-thread scopes. Observed fields include input, cached input, cache write input,
-output, reasoning output and total tokens. `event_msg` token-count records can
-also include last and total usage and rate-limit information.
+```jsonc
+{
+  "type": "assistant",
+  "message": {
+    "usage": {
+      "input_tokens": 100,                 // Reported input tokens
+      "output_tokens": 20,                 // Reported output tokens
+      "cache_creation_input_tokens": 50,   // Cache creation input
+      "cache_read_input_tokens": 10        // Cache read input
+    }
+  }
+}
+```
+
+Separate `cost-state` entries can contain model usage, durations and a reported
+total cost. Some message usage records have nested cache or output details.
+
+Codex can report usage at several scopes in one record:
+
+```jsonc
+{
+  "type": "token_usage_record",
+  "payload": {
+    "session_id": "session-1",
+    "turn_id": "turn-1",
+    "usage": { "input_tokens": 100, "output_tokens": 20 },
+    "turn_token_usage": { "input_tokens": 100, "output_tokens": 20 },
+    "thread_token_usage": { "input_tokens": 300, "output_tokens": 60 }
+  }
+}
+```
+
+Other observed fields include `cached_input_tokens`, `cache_write_input_tokens`,
+`reasoning_output_tokens` and `total_tokens`. Token-count events can also hold
+last and total usage and rate-limit information.
 
 These values cannot be added together blindly: a cumulative total, a turn total
 and a response observation can overlap. Cache and reasoning token definitions
 may also differ by source. The design must preserve reported scope, semantics
 and provenance, distinguish estimates from measured or reported values, and
-avoid double counting. The exact meaning of each field requires documentation or
-further investigation.
+avoid double counting. Exact field meanings require further investigation.
 
 ## 6. Lifecycle, errors and interruptions
 
-Claude includes system entries, API-related errors on some assistant entries,
-queue operations and turn-duration records. Codex has `task_started`,
-`task_complete` and `turn_aborted` events, with turn identifiers and available
-timestamps, duration or reason. These are native observations, not a complete
-account of the runner's attempt lifecycle.
+Claude system entries can report turn duration, among other lifecycle details:
 
-The runner must separately record process exit, stderr, interruptions, retries
-and quota waits that it observes. A native error or rate-limit field is evidence
-to interpret, but does not by itself establish a safe retry or quota policy.
-The schema must allow incomplete and uncertain outcomes.
+```jsonc
+{
+  "type": "system",
+  "subtype": "turn_duration",
+  "sessionId": "session-1",
+  "durationMs": 1200                 // Reported duration in milliseconds
+}
+```
+
+Codex can report a completed turn through an event payload:
+
+```jsonc
+{
+  "type": "event_msg",
+  "payload": {
+    "type": "task_complete",
+    "turn_id": "turn-1",
+    "duration_ms": 1200              // Reported duration in milliseconds
+  }
+}
+```
+
+Claude also has API-related errors and queue operations. Codex has
+`task_started` and `turn_aborted` events, with available timestamps or reasons.
+These are native observations, not a complete account of the runner's attempt
+lifecycle. The runner separately records process exit, stderr, interruptions,
+retries and quota waits. A native error or rate-limit field is evidence to
+interpret, but does not by itself establish a safe retry or quota policy. The
+schema must allow incomplete and uncertain outcomes.
 
 ## 7. Subagents, files and other evidence
 
-Claude records can include agent identifiers, sidechain markers, tool results
-and file-history snapshots or deltas. Codex records can include parent thread
-identifiers, `SubAgentActivity`, collaboration tool calls and file-change
-items. These provide clues about relationships and file activity, but do not
-establish that every subagent or file access is observable.
+Codex completed items can identify a subagent and its activity:
+
+```jsonc
+{
+  "type": "event_msg",
+  "payload": {
+    "type": "item_completed",
+    "turn_id": "turn-1",
+    "item": {
+      "type": "SubAgentActivity",
+      "id": "item-1",
+      "agent_thread_id": "agent-1",  // Native agent thread identifier
+      "model": "example-model"
+    }
+  }
+}
+```
+
+Claude entries can include agent identifiers and sidechain markers, while its
+file-history entries contain snapshots or deltas. Codex also has parent-thread
+identifiers, collaboration tool calls and file-change items. These provide
+clues about relationships and file activity, but do not establish that every
+subagent or file access is observable.
 
 Neither session format replaces workspace inspection for a trial's starting
 state, final diff and recoverable artifacts. Session-derived file or command
-activity is reported activity, not proof of every filesystem change. Likewise,
-raw session files and other native artifacts need stable references independent
-of any normalized view.
+activity is reported activity, not proof of every filesystem change. Raw
+session files and other native artifacts need stable references independent of
+any normalized view.
 
 ## 8. Questions for the schema design
 

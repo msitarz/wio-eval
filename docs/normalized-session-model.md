@@ -332,3 +332,38 @@ Before this becomes a schema contract, the next design steps need to settle:
 
 These questions should be tested against non-interactive streams and additional
 harnesses before the model is treated as stable.
+
+## 11. Checking harness compatibility
+
+Harnesses change frequently. A future compatibility check could run a small,
+bounded example with an installed harness, capture its native evidence and
+pass it through the same adapter and normalizer used for experiments. A working
+command name is `wio-eval harness check`; its final interface is open.
+
+```mermaid
+flowchart LR
+    H[Installed harness] --> R[Bounded example execution]
+    R --> N[Captured native evidence]
+    N --> A[Adapter and normalizer]
+    A --> C[Compatibility report]
+```
+
+The check should identify the harness, its reported version, the tested source
+interfaces and the adapter version. It should report which expected observations
+were captured and normalized, as well as unknown records, parse errors, missing
+expected evidence and any partial or uncertain interpretation. Raw evidence
+and diagnostics should be available for inspection, subject to the same
+redaction considerations as experiment evidence.
+
+A passing check would show that the tested example and source interfaces worked
+under the conditions recorded. It would not certify every event type, tool,
+model, execution mode or session format that harness version can produce. A
+failed or incomplete check should identify the affected capability and preserve
+the evidence needed to investigate; it must not silently claim full support.
+
+The example's scope, expected observations, credential and subscription use,
+network requirements, output retention and cleanup need a future design.
+Fixtures from known versions remain useful for repeatable regression tests; a
+live check complements them by exercising the installed harness and adapter
+together. The check reports compatibility, not whether the agent's answer is
+correct or its behavior desirable.

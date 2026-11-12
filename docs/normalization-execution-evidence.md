@@ -1,0 +1,339 @@
+# Execution evidence for normalization
+
+This working document extends the
+[proposed session model](normalized-session-model.md) with evidence the runner
+and workspace can supply. It describes intended outcomes, not implemented
+records or a settled schema. The
+[provenance proposal](normalization-provenance.md) applies to these observations
+as well as to harness-native records.
+
+Examples use synthetic `jsonc` excerpts. Comments explain fields; identities,
+status names and storage layout are proposals. An omitted field is not
+necessarily absent in the source.
+
+## 1. Runner lifecycle
+
+The runner knows what it planned to start and what it observed while managing
+execution. Its lifecycle evidence connects the experiment plan to attempts and
+sessions, including work that fails before a harness creates a session.
+
+```mermaid
+flowchart LR
+    P[Planned trial] --> A1[Attempt 1]
+    A1 --> I[Interruption observed]
+    I --> A2[Attempt 2]
+    A2 --> E[Process exit observed]
+    A1 --> S1[Session evidence, if available]
+    A2 --> S2[Session evidence, if available]
+```
+
+A trial is one intended independent observation. A retry is another attempt of
+that trial, not another repetition. An attempt can contain several sessions or
+none; a native session can be linked only when the relationship is supported by
+runner or harness evidence. A stage is recorded where the execution driver can
+identify its boundary; it is not assumed from a session or process boundary.
+
+### Planned and observed execution
+
+A plan record identifies the trial and intended conditions. It does not prove
+that the runner started them. A runner event records an observed lifecycle
+transition with a source and available time:
+
+```jsonc
+{
+  "id": "event-1",
+  "kind": "attempt_started",
+  "trial_id": "trial-1",
+  "attempt_id": "attempt-1",
+  "timestamp": "2026-01-01T12:00:00Z",
+  "observation_status": "observed", // Runner recorded the transition
+  "evidence": [{ "source_id": "runner-log", "locator": {
+    "kind": "jsonl_line", "line": 10
+  }}]
+}
+```
+
+The record is an illustrative normalized observation; it does not prescribe a
+runner log format. The source and its locator identify preserved evidence.
+Wall-clock timestamps, monotonic durations and their clock sources have
+different properties and should be recorded when available. Missing end
+boundaries remain unknown rather than being filled from the last event.
+
+### Exit, failure and interruption
+
+A process exit is an observation; the meaning of the exit is a separate claim.
+For example, a zero exit status does not by itself establish that the task was
+successful or that all evidence was captured.
+
+```jsonc
+{
+  "kind": "process_exit",
+  "attempt_id": "attempt-1",
+  "data": { "exit_code": 1 },        // Directly observed process status
+  "observation_status": "observed",
+  "evidence": [{ "source_id": "runner-log", "locator": {
+    "kind": "jsonl_line", "line": 25
+  }}]
+}
+```
+
+An interruption classification needs its own basis. A quota interruption can
+be identified only when evidence reliably supports it. An unclassified failure
+is not automatically an agent failure or a quota event. If a rule infers a
+classification, the record should identify the rule and evidence, and retain
+the direct observations. The attempt and trial can remain incomplete or
+uncertain when recovery cannot safely determine their state.
+
+```jsonc
+{
+  "kind": "interruption_classification",
+  "attempt_id": "attempt-1",
+  "data": { "classification": "quota_interruption" },
+  "observation_status": "inferred", // Interpretation of separate evidence
+  "rule": "example-quota-rule",
+  "evidence": [{ "source_id": "stderr-artifact", "locator": {
+    "kind": "byte_range", "start": 0, "end": 120
+  }}]
+}
+```
+
+The locator and rule are illustrative; the example does not assert that any
+specific stderr text reliably identifies quota exhaustion. An unavailable or
+redacted source limits what the classification can establish.
+
+### Waits, retries and completion
+
+A quota wait can have a start, end and reason where observable. A retry event
+links the new attempt to the same trial and can state the runner's reason. If a
+process stops or restarts before a wait ends, the missing boundary and recovery
+state remain visible. Completion is a recorded state under an explicit execution
+boundary; it is not a semantic judgment of the agent's answer.
+
+The result should retain lifecycle events and their sources even for failed or
+partial attempts. A summary can count attempts, interruptions and wait durations
+only with defined scopes and denominators; overlapping or incomplete durations
+must not be added as if they were independent complete waits.
+
+### Questions for review: lifecycle
+
+1. Which runner events establish attempt and trial completion, and how are
+   uncertain process states resolved after a restart?
+2. What source-specific evidence is sufficient to classify quota exhaustion and
+   distinguish it from other interruptions?
+3. How should a recovered session be linked across attempts without treating
+   earlier events as new independent activity?
+4. Which clock and interval semantics allow durations and waits to be compared
+   without hiding missing boundaries?
+
+## 2. Repository evidence
+
+Repository evidence answers two different questions: what starting state was
+prepared for a trial, and what state and changes were captured after execution.
+A fixture expresses the intended starting conditions; workspace inspection
+records what the runner actually observed. A harness's reported file activity
+is another source, not a complete substitute for either.
+
+```mermaid
+flowchart LR
+    F[Repository fixture] --> W[Prepared workspace]
+    W --> B[Starting-state evidence]
+    W --> A[Attempt execution]
+    A --> E[Final-state evidence]
+    B --> D[Change artifacts]
+    E --> D
+    A --> H[Harness-reported file activity]
+```
+
+### Starting state
+
+A fixture can name a repository and pinned revision; the runner can inspect the
+prepared workspace to record its actual revision and state. The two claims must
+remain distinguishable: requesting a revision does not prove that preparation
+succeeded, and a Git commit alone does not describe uncommitted or untracked
+inputs.
+
+```jsonc
+{
+  "kind": "repository_start",
+  "trial_id": "trial-1",
+  "workspace_id": "workspace-1",
+  "data": {
+    "fixture_id": "fixture-1",       // Intended input
+    "requested_revision": "abc123",  // Illustrative shortened identifier
+    "observed_revision": "abc123",   // Observed in the prepared workspace
+    "working_tree_state": "clean"
+  },
+  "observation_status": "observed", // Applies to the workspace inspection
+  "evidence": [{ "source_id": "workspace-inspection", "locator": {
+    "kind": "jsonl_line", "line": 1
+  }}]
+}
+```
+
+The identifiers are illustrative, not a prescription for Git hash length. A
+real record needs unambiguous revision and repository identity where available,
+and separate provenance for the requested fixture and observed state. If
+inspection fails, or a dirty starting tree is allowed, record the condition and
+available artifacts without claiming a clean baseline. Instruction variants,
+submodules, ignored files and other inputs may require separate evidence; a
+revision alone does not establish their contents.
+
+### Final state and changes
+
+The runner can preserve a final Git diff, a working-tree status and other
+artifacts needed to recover relevant changes. Their scope and collection time
+matter: a diff against the starting revision, a staged diff and an unstaged diff
+are different observations. A diff does not automatically include untracked or
+ignored files. The result needs to say which files and states were captured,
+omitted or unavailable, rather than imply that one artifact is complete.
+
+```jsonc
+{
+  "kind": "repository_capture",
+  "attempt_id": "attempt-1",
+  "workspace_id": "workspace-1",
+  "data": {
+    "baseline": "starting-state-1",  // Reference to the compared state
+    "diff_artifact": "artifact-diff-1",
+    "untracked_artifact": "artifact-files-1",
+    "capture_status": "partial"      // Some relevant state was not captured
+  },
+  "observation_status": "observed",
+  "evidence": [{ "source_id": "workspace-inspection", "locator": {
+    "kind": "jsonl_line", "line": 12
+  }}]
+}
+```
+
+A partial capture should identify the known omission or failure. A failed
+attempt can still produce changes; capture them where possible before cleanup.
+A shared workspace may include effects of other work, so its changes cannot
+silently be attributed to one trial. An isolated workspace supports a stronger
+boundary, but the isolation mechanism and its limits must be recorded.
+
+### Reported activity and observed state
+
+A harness can report a file read, edit or command. A final diff describes a
+comparison of captured states. Neither proves the other: a file may be read
+without changing it, modified and restored, or changed without a visible tool
+record. Preserve both sources and any supported relationship, without inferring
+a complete access history or attributing a change to a particular tool call by
+proximity alone.
+
+### Questions for review: repository
+
+1. What fixture and workspace identities are sufficient to reproduce and
+   compare the actual starting state, including dirty and non-Git inputs?
+2. Which capture methods cover staged, unstaged, untracked, ignored and large
+   files, and how are omissions or collection failures expressed?
+3. How should attempt-level captures relate to trial-level output when a retry
+   uses a fresh workspace or resumes a prior one?
+4. How are shared-workspace effects and uncertain attribution represented?
+
+## 3. Environment evidence
+
+A frozen task and repository revision do not describe everything an agent can
+see or do. Environment evidence records the execution conditions that can be
+specified or observed: harness and tool versions, platform, permissions,
+configuration and workspace isolation, among others. It should help a consumer
+compare executions without claiming that the environment is completely known
+or reproducible.
+
+### Intended and observed conditions
+
+An experiment can request a harness version or isolation mode. The runner can
+also observe what it actually launched or prepared. Those are separate claims
+with separate sources; a configured value is not proof of the effective value.
+
+```jsonc
+{
+  "kind": "environment_observation",
+  "attempt_id": "attempt-1",
+  "subject": "harness",
+  "data": {
+    "name": "example-harness",
+    "version": "example-version"
+  },
+  "observation_status": "observed", // Reported by a version command
+  "evidence": [{ "source_id": "version-output", "locator": {
+    "kind": "byte_range", "start": 0, "end": 32
+  }}]
+}
+```
+
+A harness may also report its own version in session metadata. If two sources
+conflict, preserve both and their scope: an installed binary, launched binary
+and session producer might not be the same. The same applies to tools found on
+`PATH` versus tools actually used. An absent version is unknown unless a
+reliable check establishes a more specific reason.
+
+### Permissions and isolation
+
+The result can record requested and observable sandbox, approval, network and
+filesystem conditions. An isolation mode is an experimental condition, not an
+unqualified security guarantee. A shared workspace is explicitly non-isolated;
+a container or other isolated workspace needs its runtime and effective
+configuration recorded where observable.
+
+```jsonc
+{
+  "kind": "environment_observation",
+  "attempt_id": "attempt-1",
+  "subject": "workspace_isolation",
+  "data": {
+    "requested_mode": "isolated",
+    "observed_mechanism": "container",
+    "image_digest": "sha256:example", // Placeholder, not a real digest
+    "network_policy": "unknown"       // No observed effective policy
+  },
+  "observation_status": "observed",
+  "evidence": [{ "source_id": "runtime-inspection", "locator": {
+    "kind": "jsonl_line", "line": 4
+  }}]
+}
+```
+
+The requested mode and runtime inspection need separate provenance even when
+shown together. A runtime configuration may describe intended restrictions
+without proving every effective permission or behavior. If a value is inferred
+from configuration rather than observed at runtime, label that inference and
+its basis. If the policy or enforcement cannot be determined, leave it unknown.
+
+### Configuration, changes and sensitive values
+
+Environment information can change within an attempt: a tool version, working
+directory or harness configuration may differ between sessions. Observations
+need a scope and an effective or observed time where available. A snapshot is
+evidence at its capture point, not proof that the value stayed constant.
+
+Configuration and environment variables can contain credentials or private
+data. Capture only what is needed under the experiment's redaction policy;
+record that a value was withheld without exposing it in normalized output,
+diagnostics or raw artifacts intended for sharing. A hash or reference is not
+a substitute for a secret-handling policy, and a redacted value does not prove
+two environments had identical secrets or behavior.
+
+### Connecting the evidence
+
+A runner observation can apply to an experiment, trial, attempt, workspace or
+session. Attach it only at a scope supported by its source. When a harness
+reports a context change within a session, preserve that report alongside the
+runner's environment observations; do not overwrite a conflicting value or
+assume they describe the same instant.
+
+Together, lifecycle, repository and environment records provide context for
+session evidence. They still leave gaps: external services, provider behavior,
+unobserved dependencies and unavailable settings can differ. A result should
+state capture limitations and support comparison of known conditions without
+asserting full reproducibility.
+
+### Questions for review: environment
+
+1. Which environment attributes are required, optional or unavailable for each
+   workspace and execution mode, and when are they captured?
+2. How can configured, effective, observed and inferred permissions be
+   distinguished across platforms and isolation mechanisms?
+3. How should conflicting observations and changes over time be represented
+   and linked to the sessions or events they apply to?
+4. Which values can be retained, hashed or redacted without leaking credentials
+   or implying equivalence that cannot be established?

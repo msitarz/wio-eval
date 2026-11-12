@@ -81,6 +81,9 @@ provenance, attempt lifecycle and raw artifact guarantees. An exporter must not
 invent missing values to satisfy a trajectory shape, nor confuse its evaluation
 or training-related extension fields with wio-eval's own responsibilities.
 
+The [Harbor normalization assessment](harbor-normalization-assessment.md)
+examines its converters, source traceability and Claude Code format changes.
+
 [agent-session-to-atif](https://github.com/rushabhpat/agent-session-to-atif)
 is a concrete converter and documents native source limitations and Claude
 message-ID usage deduplication. Its reader can skip invalid lines, and some

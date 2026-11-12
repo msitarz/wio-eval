@@ -205,3 +205,33 @@ check of authentication and quota behavior. Compare the resulting work needed
 to meet the same contract before deciding whether to extract, integrate or
 combine the two. The outcome is a technical decision, not a claim that either
 project already implements all of wio-eval.
+
+## Controlled recovery comparison
+
+A controlled probe exercised Ataraxia with a fake Codex process and Harbor's
+actual retry queue and resume reconciliation with a simulated trial. Both used
+an illustrative task to write a file. The probe focused on evidence retention
+and recovery; it did not establish equivalent end-to-end execution in both
+runners.
+
+| Check | Ataraxia | Harbor |
+| --- | --- | --- |
+| Retry | A simulated, recognized capacity failure led to a successful second attempt. Both attempts' raw output and records remained under one call. A separate ambiguous failure was not retried. | A simulated infrastructure exception led the queue to replay the trial successfully. The first attempt's trial directory and its evidence were removed before replay. |
+| Interruption | A `SIGTERM` sent during the fake process produced an incomplete run with a cancelled attempt. Its stdout, stderr and attempt record remained. | The probe created a partial trial directory to exercise resume cleanup; it did not interrupt a running Harbor process. |
+| Restart | A new invocation using the same output directory was rejected, leaving the existing evidence intact. The runner did not resume that run. | Resume reconciliation removed the partial directory without a result. A separate completed trial directory remained and its result was recovered. |
+
+These retry stimuli were different: Ataraxia received a recognized capacity
+failure, while Harbor received an infrastructure exception. The fake Ataraxia
+process wrote a workspace file before reporting capacity failure, so the probe
+cannot establish realistic workspace restoration or the absence of effects from
+that failure. The Harbor trial itself was simulated, even though its queue and
+resume methods were real. Docker was unavailable, and the probe did not test
+container lifecycle, subscription authentication or quota-reset waiting.
+
+The observations sharpen the remaining integration question. A Harbor-based
+engine would need to preserve attempt evidence before retry cleanup and partial
+evidence before resume cleanup. Whether its hooks can do so reliably, including
+when the process stops abruptly, remains to be tested. An Ataraxia-based engine
+needs durable restart and reconciliation. The probe does not establish which
+adaptation is less work; a common end-to-end slice with equivalent failure and
+workspace conditions is still needed.

@@ -106,7 +106,7 @@ different parts of wio-eval's recovery outcome.
 | Quota | Optional Codex quota detection, waiting and probes; fail closed on unverified telemetry. | Classifies rate or usage-limit errors and supports bounded retry; reset-aware subscription queue management was not established. |
 | Restart | No resume of a previous run after process restart. | Resumes jobs using persisted trial results, subject to cleanup behavior below. |
 | Normalization | Raw Codex JSONL and operational records; no harness-neutral session schema. | ATIF trajectories and converters for some agents; completeness varies. |
-| WIO | No WIO workflow driver. | No WIO workflow driver identified in the reviewed source. |
+| wio | No wio workflow driver. | No wio workflow driver identified in the reviewed source. |
 
 The sources for these distinctions are Ataraxia's
 [runner guide](https://github.com/msitarz/ataraxia/blob/master/script/eval/README.md),
@@ -180,8 +180,8 @@ must not be presented as those capabilities.
 Harbor offers working building blocks for multiple agents, repetition,
 container environments, concurrency, job resume and ATIF. A wio-eval driver
 could potentially invoke Harbor with verification disabled and translate its
-artifacts into a wio-eval result. A WIO driver could be a separate integration;
-Harbor does not need to own WIO workflow decisions.
+artifacts into a wio-eval result. A wio driver could be a separate integration;
+Harbor does not need to own wio workflow decisions.
 
 Before relying on Harbor as the execution backend, wio-eval would need to
 address or work around the evidence-removing retry and resume paths, establish

@@ -29,6 +29,70 @@ execution-only integration. Its terminology and result shapes still need
 mapping to wio-eval's experiment, trial, attempt and session distinctions.
 [Harbor job configuration](https://github.com/harbor-framework/harbor/blob/main/docs-mintlify/jobs/configs.mdx)
 
+## Internal design
+
+The two runners center their execution around different units. Ataraxia builds
+on a quota-aware coordinator and durable attempt evidence. Harbor builds a job
+of trials; each trial runs an agent and, optionally, a verifier in a pluggable
+environment.
+
+```mermaid
+flowchart LR
+    subgraph A[Ataraxia]
+        AI[Frozen inputs] --> AP[Plan]
+        AP --> AC[Coordinator]
+        AC --> AQ[Quota and retry policy]
+        AC --> AA[Codex invocation]
+        AA --> AS[Process supervisor]
+        AS --> AE[Attempt evidence]
+    end
+    subgraph H[Harbor]
+        HI[Tasks and agent config] --> HP[Job plan]
+        HP --> HQ[Trial queue]
+        HQ --> HT[Trial]
+        HT --> HE[Environment]
+        HT --> HA[Agent integration]
+        HT --> HV[Optional verifier]
+        HT --> HR[Trial artifacts and result]
+    end
+```
+
+| Boundary | Ataraxia | Harbor |
+| --- | --- | --- |
+| Planning | Freezes inputs and expands context, model and effort combinations. | Builds trial configurations from tasks, agents and repetitions. |
+| Scheduling | The coordinator tracks calls, attempts, retries and quota states. | A trial queue handles concurrency, per-agent limits, retries and backoff. |
+| Agent | Consumer-owned ports separate binding, request building, invocation and classification; the implementation is Codex-specific. | `BaseAgent` defines agent setup and execution, with capabilities and concrete integrations. |
+| Environment | The process supervisor launches Codex against an owned or caller-prepared local directory. | `BaseEnvironment` provides environment lifecycle, command execution and file transfer for local and remote implementations. |
+| Evidence | An evidence store publishes the frozen plan, lifecycle events and raw per-attempt records. | Trial artifacts, logs and results are collected alongside supported trajectory exports. |
+| Evaluation | The caller interprets evidence outside the runner. | A trial can run a verifier, which can be disabled. |
+
+Ataraxia's
+[runner ports](https://github.com/msitarz/ataraxia/blob/master/script/eval/runner/ports.py)
+separate dispatch from adapters without yet defining a general multi-harness
+contract. Harbor's
+[agent base](https://github.com/harbor-framework/harbor/blob/main/src/harbor/agents/base.py)
+and
+[environment base](https://github.com/harbor-framework/harbor/blob/main/src/harbor/environments/base.py)
+make the agent and its execution environment independent extension points.
+
+### Settlement and recovery
+
+Ataraxia's coordinator represents call and quota states explicitly. A retry adds
+an attempt to a scheduled call; an evidence-write failure can leave settlement
+pending rather than silently recording completion. The evidence writer publishes
+new artifacts without replacement and synchronizes relevant writes. These
+boundaries support preserving attempt evidence, but the current runner does not
+resume a prior run after a process restart.
+[Call states](https://github.com/msitarz/ataraxia/blob/master/script/eval/runner/coordinator/call_states.py),
+[evidence writer](https://github.com/msitarz/ataraxia/blob/master/script/eval/evidence.py)
+
+Harbor's queue creates a trial and uses its recorded exceptions to decide
+whether to retry. A retry replays the trial, including earlier steps. Harbor's
+job-level resume reconciles persisted trial results, but the retry and resume
+cleanup paths described below can remove failed or partial trial evidence. Its
+restart machinery and Ataraxia's attempt-evidence guarantees therefore address
+different parts of wio-eval's recovery outcome.
+
 ## Capability comparison
 
 | Outcome | Ataraxia runner | Harbor |

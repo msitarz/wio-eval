@@ -7,9 +7,9 @@ support would put the most valuable behavior at risk.
 
 Do not import the existing CLI unchanged as wio-eval's permanent public
 interface. Its model assumes a matrix of context directories, models, and
-reasoning efforts, and its Codex invocation requests a read-only sandbox. Those
-are useful starting behaviors, but narrower than wio-eval's intended experiment
-model.
+reasoning efforts. Its default Codex invocation requests a read-only sandbox;
+it also supports a caller-prepared writable workspace. These behaviors are
+narrower than wio-eval's intended experiment model.
 
 ## Existing capabilities
 
@@ -62,8 +62,8 @@ and package metadata, declare dependencies, and provide a minimal wio-eval
 entry point.
 
 Initially retain existing behavior and conservative quota checks. Keep the
-Codex-specific read-only and approval settings explicit rather than suggesting
-they already support repository-editing experiments.
+Codex sandbox, tool and approval settings explicit. A caller-prepared writable
+workspace is shared across calls and retries, not isolated per trial.
 
 **Outcome:** standalone wio-eval can reproduce an Ataraxia-style Codex run
 with controlled inputs and durable evidence.
@@ -102,9 +102,9 @@ Implement isolated trial workspaces from a pinned revision, plus an explicitly
 declared shared-workspace mode. Capture the starting state, relevant
 environment provenance, final status, diff, and recoverable artifacts.
 
-Make execution permissions and Codex's current read-only request explicit
-configuration: a coding task that edits a repository cannot be represented
-honestly as the current read-only invocation.
+Make execution permissions and Codex's sandbox and tool requests explicit
+configuration. A caller-prepared writable workspace does not by itself provide
+fresh trial isolation or capture repository changes.
 
 **Outcome:** repetitions can start independently and their repository changes
 can be inspected.
